@@ -1,0 +1,12 @@
+{
+  "name": "datapackupdater",
+  "version": "1.0.0",
+  "description": "Upgrade your datapack from 1.20.4 to 1.20.5",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js -c \"/give @s[distance=0..5] diamond_sword{Enchantments:[{id:\\\"sharpness\\\",lvl:1s}]}\"",
+    "run": "node index.js"
+  },
+  "author": "wifi_left",
+  "license": "ISC"
+}
