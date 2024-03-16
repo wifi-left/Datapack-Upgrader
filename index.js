@@ -29,7 +29,7 @@ function transformCommand(command) {
         let comArgs = parseCommand(command);
         writeLine(comArgs);
         writeLine(parseSelectorArg(comArgs[1]));
-        writeLine(parseItemArg(comArgs[2]).tags);
+        writeLine(parseItemArg(comArgs[2]));
     } catch (error) {
         writeLine("# 在解析命令时发生错误：" + error.message);
         console.error(error);

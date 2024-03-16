@@ -144,10 +144,86 @@ function parseValues(text, separator, equalsChar) {
         }
     }
     if (fanXieGang > 0) {
-        throw SyntaxError("转义错误。");
+        throw SyntaxError("转义错误");
+    }
+    if (keyName == '') {
+        throw SyntaxError("键名为空");
     }
     cmds[keyName] = tempStr;
     return cmds;
+}
+function splitTagAndComponents(text) {
+    // console.log(text)
+    if (text.startsWith("{")) return { tags: text, components: {} };
+    var stack = [];
+    var tempStr = '';
+    var tags = "";
+    var components = "";
+    var fanXieGang = 0;
+    for (var i = 0; i < text.length; i++) {
+        if (text[i] == "\"" && fanXieGang == 0) {
+            tempStr += text[i];
+            if (stack[stack.length - 1] == "\"") stack.pop()
+            else stack.push("\"");
+        } else if (text[i] == "'" && fanXieGang == 0) {
+            tempStr += text[i];
+            if (stack[stack.length - 1] == "'") stack.pop()
+            else stack.push("'");
+        } else if (stack[stack.length - 1] != '"' && stack[stack.length - 1] != "'") {
+            if (text[i] == '[') {
+                tempStr += text[i];
+                // if (stack[stack.length-1] == '"') stack.pop()
+                stack.push('[');
+            } else if (text[i] == '{') {
+                tempStr += text[i];
+                // if (stack[stack.length-1] == '"') stack.pop()
+                stack.push('{');
+            } else if (text[i] == ']') {
+                if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
+                else {
+                    throw SyntaxError("字符串的中括号不成对");
+                }
+                if (stack.length == 0) {
+                    components = tempStr;
+                    tempStr = '';
+                }
+            } else if (text[i] == '}') {
+                if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
+                else throw SyntaxError("字符串的大括号不成对");
+            } else {
+                tempStr += text[i];
+            }
+        } else {
+            tempStr += text[i];
+        }
+        if (fanXieGang) fanXieGang = 0;
+        else if (text[i] == '\\') {
+            fanXieGang = 1;
+        }
+    }
+    if (stack.length > 0) {
+        switch (stack[0]) {
+            case '"':
+                throw SyntaxError("字符串的双引号不成对");
+                break;
+            case '[':
+                throw SyntaxError("字符串的中括号不成对");
+                break;
+            case '{':
+                throw SyntaxError("字符串的大括号不成对");
+                break;
+            case "'":
+                throw SyntaxError("字符串的单引号不成对");
+                break;
+            default:
+                throw SyntaxError("无法匹配“" + stack[0] + "”");
+        }
+    }
+    if (fanXieGang > 0) {
+        throw SyntaxError("转义错误。");
+    }
+    tags = tempStr;
+    return { tags: tags, components: components };
 }
 function parseSelectorArg(selector) {
     let idx = selector.indexOf("[");
@@ -161,18 +237,27 @@ function parseSelectorArg(selector) {
 }
 function parseItemArg(item) {
     let idxNbt = item.indexOf("{");
-    if (idxNbt == -1) return { id: item };
-
-    let idyNbt = item.lastIndexOf("}");
-    let itemA = item.substring(0, idxNbt);
-    let nbt = item.substring(idxNbt + 1, idyNbt);
-    let nbts = NBTools.ParseNBT(nbt);
-    itemA = parseSelectorArg(itemA);
-    let itemId = itemA.player;
-    let components = itemA.components;
-    return { id: itemId, components: components, tags: nbts }
+    let idx = item.indexOf("[");
+    let itemId = item;
+    if (idxNbt == -1 && idx == -1) return { id: item };
+    if (idx != -1) {
+        itemId = item.substring(0, idx);
+    } else {
+        itemId = item.substring(0, idxNbt);
+    }
+    // 分离tag和components
+    if (idx == -1) idx = idxNbt;
+    let tagAndComponent = item.substring(idx);
+    let tAcs = splitTagAndComponents(tagAndComponent);
+    return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
 }
 function parseBlockArg(Block) {
 
 }
-module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues }
+function parseComponents(components) {
+    if (components.startsWith("[") && components.endsWith("]")) {
+        components = components.substring(1, components.length - 1);
+    }
+    return parseValues(components, ",", "=");
+}
+module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents }
