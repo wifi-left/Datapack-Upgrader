@@ -1,5 +1,9 @@
 const { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues } = require("./mccommand.js");
 const package = require("./package.json")
+console.warn("###")
+console.warn("### Datapack Upgrader v" + package.version + " by " + package.author)
+console.warn("### If you encounter a problem, make a issue on "+package.homepage)
+console.warn("### ")
 const NBTools = require("./NBTool.js").NBTools;
 function writeLine(...lines) {
     for (let i = 0; i < lines.length; i++) {
@@ -32,7 +36,3 @@ function transformCommand(command) {
     }
 }
 
-writeLine("###")
-writeLine("### Datapack Upgrader v" + package.version + " by " + package.author)
-writeLine("### If you encounter a problem, make a issue on "+package.homepage)
-writeLine("### ")
