@@ -19,10 +19,7 @@ while (i < argvs.length) {
     i++;
 }
 
-writeLine("###")
-writeLine("### Datapack Upgrader v" + package.version + " by " + package.author)
-writeLine("### If you encounter a problem, make a issue on https://github.com/wifi-left/Datapack-Upgrader/issues")
-writeLine("### ")
+
 function transformCommand(command) {
     try {
         let comArgs = parseCommand(command);
@@ -34,3 +31,8 @@ function transformCommand(command) {
         console.error(error);
     }
 }
+
+writeLine("###")
+writeLine("### Datapack Upgrader v" + package.version + " by " + package.author)
+writeLine("### If you encounter a problem, make a issue on "+package.homepage)
+writeLine("### ")

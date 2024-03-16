@@ -8,5 +8,6 @@
     "run": "node index.js"
   },
   "author": "wifi_left",
-  "license": "ISC"
+  "license": "ISC",
+  "homepage": "https://github.com/wifi-left/Datapack-Upgrader"
 }
