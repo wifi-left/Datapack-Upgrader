@@ -1,0 +1,1 @@
+item replace entity @s armor.chest with minecraft:leather_chestplate{display:{color:15488341},Unbreakable:1b,HideFlags:63,Enchantments:[{id:"minecraft:protection",lvl:1s},{id:"fire_protection",lvl:1}]}

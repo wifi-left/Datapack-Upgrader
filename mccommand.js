@@ -1,7 +1,12 @@
 const NBTools = require("./NBTool.js").NBTools;
 function parseCommand(cmd) {
+    if (cmd.startsWith("#")) return [cmd];
     if (typeof (cmd) != "string") throw SyntaxError("非文本对象");
     return splitText(cmd, " ");
+}
+function deleteNameSpace(name) {
+    if (name.startsWith("minecraft:")) return name.substring("minecraft:".length);
+    return name;
 }
 function splitText(text, separator) {
     var stack = [];
@@ -146,15 +151,13 @@ function parseValues(text, separator, equalsChar) {
     if (fanXieGang > 0) {
         throw SyntaxError("转义错误");
     }
-    if (keyName == '') {
-        throw SyntaxError("键名为空");
+    if (keyName != '') {
+        cmds[keyName] = tempStr;
     }
-    cmds[keyName] = tempStr;
     return cmds;
 }
 function splitTagAndComponents(text) {
-    // console.log(text)
-    if (text.startsWith("{")) return { tags: text, components: {} };
+    if (text.startsWith("{")) return { tags: text, components: undefined };
     var stack = [];
     var tempStr = '';
     var tags = "";
@@ -240,13 +243,13 @@ function parseItemArg(item) {
     let idx = item.indexOf("[");
     let itemId = item;
     if (idxNbt == -1 && idx == -1) return { id: item };
-    if (idx != -1) {
+    if (idx != -1 && (idx < idxNbt || item.endsWith("]"))) {
         itemId = item.substring(0, idx);
     } else {
         itemId = item.substring(0, idxNbt);
     }
     // 分离tag和components
-    if (idx == -1) idx = idxNbt;
+    if (idx == -1 || (idx > idxNbt && item.endsWith("}"))) idx = idxNbt;
     let tagAndComponent = item.substring(idx);
     let tAcs = splitTagAndComponents(tagAndComponent);
     return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
@@ -255,9 +258,28 @@ function parseBlockArg(Block) {
 
 }
 function parseComponents(components) {
+    if (components == "" || components == null) return null;
     if (components.startsWith("[") && components.endsWith("]")) {
         components = components.substring(1, components.length - 1);
     }
     return parseValues(components, ",", "=");
 }
-module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents }
+function toItemText(itemObj) {
+    let id = itemObj.id;
+    let components = "";
+    let tag = "";
+    if (itemObj.components != null) {
+        for (let key in itemObj.components) {
+            components += (components == "" ? "" : ",") + `${key}=${NBTools.ToString(itemObj.components[key])}`;
+        }
+        components = `[${components}]`
+    }
+
+    let result = `${id}${components}${tag}`;
+    return result;
+}
+
+
+
+
+module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace }
