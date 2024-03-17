@@ -5,8 +5,8 @@ The project aims to upgrade your commands from 1.20.4 to the newer version of Mi
 I'm still working on it.
 **Support Commands**
  - [ ] `/give`
- - [ ] `/clear`
  - [ ] `/item`
+ - [ ] `/clear`
  - [ ] `/setblock` for Loot Tables and other changes 
  - [ ] `/fill` for Loot Tables and other changes
  - [ ] Other commands only for selector(Texts that start with `@` like `@a[nbt={...}]`)
