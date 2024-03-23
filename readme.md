@@ -1,12 +1,16 @@
 # Datapack Updater
+**English** | [简体中文](./readme.zh.md)
+
 The project aims to upgrade your commands from 1.20.4 to the newer version of Minecraft (1.20.5).
 
 ## Features
 I'm still working on it.
+
 **Support Commands**
  - [ ] `/give`
  - [ ] `/item`
  - [ ] `/clear`
+ - [ ] `/summon` for 'Firework' and 'Item'
  - [ ] `/setblock` for Loot Tables and other changes 
  - [ ] `/fill` for Loot Tables and other changes
  - [ ] Other commands only for selector(Texts that start with `@` like `@a[nbt={...}]`)

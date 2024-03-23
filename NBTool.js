@@ -87,7 +87,7 @@ function getNbtType(nbttext) {
 function warpKey(key) {
     if (typeof key !== 'string')
         throw new SyntaxError("Argument is not a String");
-    var regu = /[a-zA-Z0-9_\-\.\+]/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
+    var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
     if (regu.test(key)) {
         return key;
     } else {
@@ -232,7 +232,7 @@ const NBTools = {
                             }
                         }
                         if (Stack.pop() !== "Object") {
-                            throw new SyntaxError("Unexpect '}' In " + i);
+                            throw new SyntaxError("Unexpect '}' in " + i);
                         }
                         break;
 
@@ -259,20 +259,20 @@ const NBTools = {
                         IndexList.pop();
                         Keys.pop();
                         if (Stack.pop() !== "Array") {
-                            throw new SyntaxError("Unexpect ']' In " + i);
+                            throw new SyntaxError("Unexpect ']' in " + i);
                         }
                         break;
 
                     case '"':
                         if (StringBuffer !== "") {
-                            throw new SyntaxError("Unexpect '\"' In " + i);
+                            throw new SyntaxError("Unexpect '\"' in " + i);
                         }
                         StringBuffer = 'S;';
                         Stack.push("String"); // 将类型String加入堆栈 
                         break;
                     case '\'':
                         if (StringBuffer !== "") {
-                            throw new SyntaxError("Unexpect \"'\" In " + i);
+                            throw new SyntaxError("Unexpect \"'\" in " + i);
                         }
                         StringBuffer = 'S;';
                         Stack.push("StringD"); // 将类型StringD加入堆栈 

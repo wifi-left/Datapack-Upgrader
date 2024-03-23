@@ -1,5 +1,6 @@
-const { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, toItemText, deleteNameSpace } = require("./mccommand.js");
-const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMATION, ITEMSLOT_TRANSFORMATION } = require("./transformations.js");
+const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, toItemText, deleteNameSpace } = require("./mccommand.js");
+const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMATION, ITEMSLOT_TRANSFORMATION, FIREWORK_TRANSFORMATION, FLAGSCOLOR_TRANSFORMATION } = require("./transformations.js");
+const { ERROR_MESSAGES } = require("./ErrorMessages.js");
 const fs = require("fs");
 const package = require("./package.json")
 
@@ -9,7 +10,14 @@ console.warn("### If you encounter a problem, make a issue on " + package.homepa
 console.warn("### ")
 const { NBTools, getNbtContent, getNbtType } = require("./NBTool.js");
 var OutputFile = null;
+var debugMode = false;
 function writeLine(...lines) {
+    for (let i = 0; i < lines.length; i++) {
+        console.log(lines[i])
+    }
+}
+function writeDebugLine(...lines) {
+    if (!debugMode) return;
     for (let i = 0; i < lines.length; i++) {
         console.log(lines[i])
     }
@@ -18,6 +26,9 @@ let argvs = process.argv;
 let i = 0;
 while (i < argvs.length) {
     let arg = argvs[i];
+    if (arg == '-debug') {
+        debugMode = true;
+    }
     if (arg == '-c') {
         i++;
         if (i < argvs.length) {
@@ -25,18 +36,18 @@ while (i < argvs.length) {
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j]));
         }
-    }
-    if (arg == '-I') {
+    } else if (arg == '-I') {
         i++;
         if (i < argvs.length) {
             let path = argvs[i];
             let content = "";
             try {
-                console.info("# 读取文件 '" + path + "'")
+                console.info("# Reading file '" + path + "'")
                 content = fs.readFileSync(path, { encoding: "utf8" });
             } catch (error) {
-                console.error("# 读取文件时发生错误：" + error.message)
-                continue
+                console.error("## Error while reading file: " + error.message)
+                writeDebugLine(error);
+                continue;
             }
             let arrs = content.replace("\r", "").split("\n");
             for (let j = 0; j < arrs.length; j++)
@@ -54,21 +65,27 @@ function transformCommand(command) {
         // writeLine(comArgs);
 
     } catch (error) {
-        writeLine("# 在解析命令时发生错误：" + error.message);
-        console.error(error);
+        writeLine("## " + error.name + ": " + error.message);
+        writeDebugLine(error);
         return command;
     }
     if (comArgs.length <= 0) {
-        writeLine("# 由于程序内部发生未知错误而解析错误");
+        writeLine("## " + error.name + ": " + error.message);
         return command;
     }
     let cmdRoot = comArgs[0];
-    if (cmdRoot.startsWith("/")) cmdRoot = cmdRoot.substring(1);
+    let cmdRootR = cmdRoot;
+    if (cmdRoot.startsWith("/")) cmdRootR = cmdRoot.substring(1);
+    else if (cmdRoot.startsWith("$")) {
+        writeLine("## WARNING: Macros may be not fully supported yet.")
+        cmdRootR = cmdRoot.substring(1);
+    }
+
     try {
-        switch (cmdRoot) {
+        switch (cmdRootR) {
             case 'give':
                 if (comArgs.length <= 2) {
-                    writeLine("# 解析错误：命令参数不够");
+                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                     return command;
                 } else {
                     let selector = transformSelector(comArgs[1]);
@@ -77,18 +94,18 @@ function transformCommand(command) {
                 }
             case 'item':
                 if (comArgs.length <= 2) {
-                    writeLine("# 解析错误：命令参数不够");
+                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                     return command;
                 } else {
                     if (comArgs[1] == 'replace') {
                         if (comArgs[2] == 'block') {
                             if (comArgs.length < 8) {
-                                writeLine("# 解析错误：命令参数不够");
+                                writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                                 return command;
                             }
                             if (comArgs[7] == 'with') {
                                 if (comArgs.length < 9) {
-                                    writeLine("# 解析错误：命令参数不够");
+                                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                                     return command;
                                 }
                                 let item = transformItem(comArgs[8]);
@@ -100,12 +117,12 @@ function transformCommand(command) {
                             }
                         } else if (comArgs[2] == 'entity') {
                             if (comArgs.length < 6) {
-                                writeLine("# 解析错误：命令参数不够");
+                                writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                                 return command;
                             }
                             if (comArgs[5] == 'with') {
                                 if (comArgs.length < 7) {
-                                    writeLine("# 解析错误：命令参数不够");
+                                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
                                     return command;
                                 }
                                 let selector = transformSelector(comArgs[3]);
@@ -124,7 +141,8 @@ function transformCommand(command) {
             // case 'clear':
         }
     } catch (error) {
-        writeLine("# 在转换命令时发生错误：" + error.message);
+        writeDebugLine(error);
+        writeLine("## Error while transformating command: " + error.message);
     }
     return command;
 }
@@ -180,6 +198,10 @@ function transformItemTags(tag, itemId = undefined) {
                 for (let i in tag[key]) {
                     let id = getNbtContent(tag[key][i]['id']);
                     id = transformId(ENCHANTMENTS_TRANSFORMATION, id);
+                    if (id == "" || id == "none") {
+                        components['enchantment_glint_override'] = true;
+                        continue;
+                    }
                     let level = tag[key][i]['lvl'];
                     components['enchantments']['levels'][id] = level;
                 }
@@ -217,13 +239,13 @@ function transformItemTags(tag, itemId = undefined) {
             case 'CanDestory':
                 components['can_break'] = { blocks: [] };
                 for (var i in tag[key]) {
-                    components['can_break']['blocks'][components['can_break']['blocks'].length] = tag[key][i];
+                    components['can_break']['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'CanPlaceOn':
                 components['can_place_on'] = { blocks: [] };
                 for (var i in tag[key]) {
-                    components['can_place_on']['blocks'][components['can_place_on']['blocks'].length] = tag[key][i];
+                    components['can_place_on']['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'AttributeModifiers':
@@ -254,7 +276,7 @@ function transformItemTags(tag, itemId = undefined) {
                     } if (operation !== undefined) {
                         modifier['operation'] = operation;
                     }
-                    modifiers[modifiers.length] = modifier;
+                    modifiers.push(modifier);
                 }
                 components['attribute_modifiers'] = { modifiers: modifiers };
 
@@ -286,41 +308,191 @@ function transformItemTags(tag, itemId = undefined) {
             case 'map':
                 components['map_id'] = (tag[key]);
                 break;
+            case 'Potion':
+                if (components['potion_contents'] == undefined) components['potion_contents'] = {};
+                components['potion_contents'].potion = tag[key]
+                break;
+            case 'CustomPotionColor':
+                if (components['potion_contents'] == undefined) components['potion_contents'] = {};
+                components['potion_contents'].custom_color = tag[key]
+                break;
+            case 'custom_potion_effects':
+                if (components['potion_contents'] == undefined) components['potion_contents'] = {};
+                components['potion_contents'].custom_effects = (tag[key]);
+                break;
+            case 'pages':
+                if (deleteNameSpace(itemId) == 'writable_book') {
+                    if (components['writable_book_contents'] == undefined) components['writable_book_contents'] = {}
+                    let pages = tag[key];
+                    components['writable_book_contents']['pages'] = [];
+                    for (let i in pages) {
+                        components['writable_book_contents']['pages'][i] = { text: pages[i] };
+                    }
+                } else {
+                    if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                    components['written_book_contents'] = {};
+                    let pages = tag[key];
+                    components['written_book_contents']['pages'] = [];
+                    for (let i in pages) {
+                        components['written_book_contents']['pages'][i] = { text: pages[i] };
+                    }
+                }
+
+                break;
+            case 'filtered_pages':
+                if (deleteNameSpace(itemId) == 'writable_book') {
+                    if (components['writable_book_contents'] == undefined) components['writable_book_contents'] = {}
+                    if (components['writable_book_contents']['pages'] == undefined) components['writable_book_contents']['pages'] = [];
+                    for (let i in pages) {
+                        if (components['writable_book_contents']['pages'][i] == undefined)
+                            components['writable_book_contents']['pages'][i] = { filtered: pages[i] };
+                        else components['writable_book_contents']['pages'][i].filtered = pages[i];
+                    }
+                } else {
+                    if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                    if (components['written_book_contents']['pages'] == undefined) components['written_book_contents']['pages'] = [];
+                    for (let i in pages) {
+                        if (components['written_book_contents']['pages'][i] == undefined)
+                            components['written_book_contents']['pages'][i] = { filtered: pages[i] };
+                        else components['written_book_contents']['pages'][i].filtered = pages[i];
+                    }
+                }
+                break;
+            case 'author':
+                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                components['written_book_contents']['author'] = tag[key];
+                break;
+            case 'generation':
+                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                components['written_book_contents']['generation'] = tag[key];
+                break;
+            case 'resolved':
+                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                components['written_book_contents']['resolved'] = tag[key];
+                break;
+            case 'title':
+                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                components['written_book_contents']['title'] = tag[key];
+                break;
+            case 'filtered_title':
+                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
+                components['written_book_contents']['title'] = { text: components['written_book_contents']['title'], filtered: tag[key] };
+                break;
+            case 'Trim':
+                components['trim'] = tag[key];
+                break;
+            case 'effects':
+                components['suspicious_stew'] = tag[key];
+                break;
+            case 'DebugProperty':
+                components['debug_stick_state'] = tag[key];
+                break;
+            case 'EntityTag':
+                components['entity_data'] = tag[key];
+                break;
+            case 'NoAI':
+            case 'Silent':
+            case 'NoGravity':
+            case 'Glowing':
+            case 'Invulnerable':
+            case 'Health':
+            case 'Age':
+            case 'Variant':
+            case 'HuntingCooldown':
+            case 'BucketVariantTag ':
+                components['bucket_entity_data'][key] = tag[key];
+                break;
+            case 'instrument':
+                components['instrument'] = tag[key];
+                break;
+            case 'Recipes':
+                components['recipes'] = tag[key];
+                break;
+            case 'LodestonePos':
+                if (components['lodestone_tracker'] == undefined) components['lodestone_tracker'] = { target: {} };
+                components['lodestone_tracker']['target']['pos'] = tag[key];
+                break;
+            case 'LodestoneDimension':
+                if (components['lodestone_tracker'] == undefined) components['lodestone_tracker'] = { target: {} };
+                components['lodestone_tracker']['target']['dimension'] = tag[key];
+                break;
+            case 'LodestoneTracked':
+                if (components['lodestone_tracker'] == undefined) components['lodestone_tracker'] = { target: {} };
+                components['lodestone_tracker']['tracked'] = tag[key];
+                break;
+            case 'Explosion':
+                components['firework_explosion'] = { shape: transformId(FIREWORK_TRANSFORMATION, defaultOrValue(tag[key].Type, 0)), color: defaultOrValue(tag[key].Colors, []), fade_colors: defaultOrValue(tag[key].FadeColors, []), has_trail: defaultOrValue(tag[key].Trail, false), has_twinkle: defaultOrValue(tag[key].Flicker, false) };
+                break;
+            case 'Fireworks':
+                components['fireworks'] = { explosions: [], flight_duration: defaultOrValue(tag[key].Flight, 0) };
+                for (let i in tag[key].Explosions) {
+                    let fireworkEffect = tag[key].Explosions[i];
+                    let color = defaultOrValue(fireworkEffect['Colors'], []);
+                    let fade_color = defaultOrValue(fireworkEffect['FadeColors'], []);
+                    let flicker = defaultOrValue(fireworkEffect['Flicker'], false);
+                    let trail = defaultOrValue(fireworkEffect['Trail'], false);
+                    let type = transformId(FIREWORK_TRANSFORMATION, defaultOrValue(fireworkEffect['Type'], 0));
+                    let fireworkEffectNew = { shape: type, color: color, fade_colors: fade_color, has_trail: trail, has_twinkle: flicker }
+                    components['fireworks']['explosions'].push(fireworkEffectNew);
+                }
+                break;
+            case 'SkullOwner':
+                let t = tag[key];
+                if (typeof t === 'object') {
+                    let name = t['Name'];
+                    let properties = t['Properties'];
+                    if (properties != undefined) writeLine("## WARNING: We found that you used 'Properties' tag for your player_head. We didn't and won't support it. If you just need the feature, please release an issue on GitHub! And the tag also has a problem: ")
+                    let id = t['Id'];
+                } else {
+                    components['profile'] = t;
+                }
+            case 'BlockEntityTag':
+                let note_block_sound = tag[key]['note_block_sound'];
+                let base_color = transformId(FLAGSCOLOR_TRANSFORMATION, tag[key]['Base']);
+                let banner_patterns = tag[key]['Patterns'];
+                let pot_decorations = tag[key]['sherds'];
+                let container = tag[key]['Items'];
+                let bees = tag[key]['Bees'];
+                let lock = tag[key]['Lock'];
+                let LootTable = tag[key]['LootTable']; //container_loot = {loot_table:,seed:}
+                let LootTableSeed = tag[key]['LootTableSeed'];
+                if (note_block_sound != undefined) {
+                    components['note_block_sound'] = note_block_sound;
+                }
+                if (base_color != undefined) {
+                    components['base_color'] = base_color;
+                }
+                if (banner_patterns != undefined) {
+                    components['banner_patterns'] = banner_patterns;
+                }
+                if (pot_decorations != undefined) {
+                    components['pot_decorations'] = pot_decorations;
+                }
+                if (container != undefined) {
+                    components['container'] = container;
+                }
+                if (bees != undefined) {
+                    components['bees'] = bees;
+                }
+                if (lock != undefined) {
+                    components['lock'] = lock;
+                }
+                if (LootTable != undefined) {
+                    components['container_loot'] = {loot_table:LootTable};
+                    //container_loot = 
+                    if (LootTableSeed != undefined) {
+                        components['container_loot']['seed'] = LootTableSeed;
+                    }
+                }
+                writeLine("## WARNING: We found that you used 'BlockEntityTag' tag for your item. You need to add a 'id' tag (for example: 'id: \"minecraft:oak\"') due to new changes.")
+                components['block_entity_data'] = tag[key];
+            case 'BlockStateTag':
+                components['block_state'] = (tag[key]);
             case 'CustomModelData':
                 components['custom_model_data'] = (tag[key]);
                 break;
-            /*  case 'RepairCost':
-                components['repair_cost'] = (tag[key]);
-                break;
-
-                TO-DO:
+            /*  
                 HideFlags
-                potion_contents
-                writable_book_contents
-                written_book_contents
-                trim
-                suspicious_stew
-                hide_additional_tooltip
-                debug_stick_state
-                entity_data
-                bucket_entity_data
-                instrument
-                recipes
-                lodestone_tracker
-                firework_explosion
-                fireworks
-                profile
-                note_block_sound
-                base_color
-                banner_patterns
-                pot_decorations
-                container //BlockEntityTag.Items
-                bees
-                lock
-                container_loot
-                block_entity_data
-                block_state
-                enchantment_glint_override
             */
             default:
                 if (components['custom_data'] === undefined) components['custom_data'] = {};

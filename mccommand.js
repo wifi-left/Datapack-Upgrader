@@ -1,8 +1,13 @@
 const NBTools = require("./NBTool.js").NBTools;
 function parseCommand(cmd) {
     if (cmd.startsWith("#")) return [cmd];
-    if (typeof (cmd) != "string") throw SyntaxError("非文本对象");
+    if (typeof (cmd) != "string") throw SyntaxError("Not a String object!");
     return splitText(cmd, " ");
+}
+function defaultOrValue(item, defaultValue = undefined) {
+    if (defaultValue == undefined) defaultValue = "";
+    if (item == undefined) return defaultValue;
+    return item;
 }
 function deleteNameSpace(name) {
     if (name.startsWith("minecraft:")) return name.substring("minecraft:".length);
@@ -37,11 +42,11 @@ function splitText(text, separator) {
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("字符串的中括号不成对");
+                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("字符串的大括号不成对");
+                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
             } else {
                 tempStr += text[i];
             }
@@ -54,25 +59,10 @@ function splitText(text, separator) {
         }
     }
     if (stack.length > 0) {
-        switch (stack[0]) {
-            case '"':
-                throw SyntaxError("字符串的双引号不成对");
-                break;
-            case '[':
-                throw SyntaxError("字符串的中括号不成对");
-                break;
-            case '{':
-                throw SyntaxError("字符串的大括号不成对");
-                break;
-            case "'":
-                throw SyntaxError("字符串的单引号不成对");
-                break;
-            default:
-                throw SyntaxError("无法匹配“" + stack[0] + "”");
-        }
+        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
     }
     if (fanXieGang > 0) {
-        throw SyntaxError("转义错误。");
+        throw SyntaxError("Escape error.");
     }
     cmds.push(tempStr);
     return cmds;
@@ -87,7 +77,7 @@ function parseValues(text, separator, equalsChar) {
         if (text[i] == equalsChar && stack.length <= 0) {
             keyName = tempStr;
             if (keyName == '') {
-                throw SyntaxError("键名为空");
+                throw SyntaxError("Empty keyName.");
             }
             tempStr = '';
         } else if (text[i] == separator && stack.length <= 0) {
@@ -114,11 +104,11 @@ function parseValues(text, separator, equalsChar) {
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("字符串的中括号不成对");
+                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("字符串的大括号不成对");
+                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
             } else {
                 tempStr += text[i];
             }
@@ -131,25 +121,10 @@ function parseValues(text, separator, equalsChar) {
         }
     }
     if (stack.length > 0) {
-        switch (stack[0]) {
-            case '"':
-                throw SyntaxError("字符串的双引号不成对");
-                break;
-            case '[':
-                throw SyntaxError("字符串的中括号不成对");
-                break;
-            case '{':
-                throw SyntaxError("字符串的大括号不成对");
-                break;
-            case "'":
-                throw SyntaxError("字符串的单引号不成对");
-                break;
-            default:
-                throw SyntaxError("无法匹配“" + stack[0] + "”");
-        }
+        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
     }
     if (fanXieGang > 0) {
-        throw SyntaxError("转义错误");
+        throw SyntaxError("Escape error.");
     }
     if (keyName != '') {
         cmds[keyName] = tempStr;
@@ -184,7 +159,7 @@ function splitTagAndComponents(text) {
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("字符串的中括号不成对");
+                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
                 if (stack.length == 0) {
                     components = tempStr;
@@ -192,7 +167,7 @@ function splitTagAndComponents(text) {
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("字符串的大括号不成对");
+                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
             } else {
                 tempStr += text[i];
             }
@@ -205,25 +180,10 @@ function splitTagAndComponents(text) {
         }
     }
     if (stack.length > 0) {
-        switch (stack[0]) {
-            case '"':
-                throw SyntaxError("字符串的双引号不成对");
-                break;
-            case '[':
-                throw SyntaxError("字符串的中括号不成对");
-                break;
-            case '{':
-                throw SyntaxError("字符串的大括号不成对");
-                break;
-            case "'":
-                throw SyntaxError("字符串的单引号不成对");
-                break;
-            default:
-                throw SyntaxError("无法匹配“" + stack[0] + "”");
-        }
+        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
     }
     if (fanXieGang > 0) {
-        throw SyntaxError("转义错误。");
+        throw SyntaxError("Escape error.");
     }
     tags = tempStr;
     return { tags: tags, components: components };
@@ -254,8 +214,32 @@ function parseItemArg(item) {
     let tAcs = splitTagAndComponents(tagAndComponent);
     return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
 }
-function parseBlockArg(Block) {
+function parseEntityArg(entity) {
+    let idxNbt = entity.indexOf("{");
 
+    let itemId = entity;
+    if (idxNbt == -1) return { id: entity };
+
+    itemId = entity.substring(0, idxNbt);
+    // 分离tag
+    let tags = item.substring(idx);
+    return { id: itemId, tags: NBTools.ParseNBT(tags) }
+}
+function parseBlockArg(Block) {
+    let idxNbt = Block.indexOf("{");
+    let idx = Block.indexOf("[");
+    let itemId = Block;
+    if (idxNbt == -1 && idx == -1) return { id: Block };
+    if (idx != -1 && (idx < idxNbt || Block.endsWith("]"))) {
+        itemId = Block.substring(0, idx);
+    } else {
+        itemId = Block.substring(0, idxNbt);
+    }
+    // 分离tag和components
+    if (idx == -1 || (idx > idxNbt && Block.endsWith("}"))) idx = idxNbt;
+    let tagAndComponent = Block.substring(idx);
+    let tAcs = splitTagAndComponents(tagAndComponent);
+    return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
 }
 function parseComponents(components) {
     if (components == "" || components == null) return null;
@@ -282,4 +266,4 @@ function toItemText(itemObj) {
 
 
 
-module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace }
+module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue }
