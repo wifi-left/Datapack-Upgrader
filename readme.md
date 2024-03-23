@@ -9,11 +9,13 @@ I'm still working on it.
 **Support Commands**
  - [x] `/give`
  - [x] `/item`
- - [ ] `/clear`
- - [ ] `/summon` for 'Firework' and 'Item'
+ - [x] `/clear`
+ - [x] `/summon` for 'Firework' and 'Item'
  - [ ] `/setblock` for Loot Tables and other changes 
  - [ ] `/fill` for Loot Tables and other changes
- - [ ] Other commands only for selector(Texts that start with `@` like `@a[nbt={...}]`)
+ - [x] Other commands only for selector(Texts that start with `@` like `@a[nbt={...}]`)
+ - [ ] Loot Table
+ - [ ] Item modifier
 
 ## Get to start
 ### Use in command mode:

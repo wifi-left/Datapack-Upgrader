@@ -6,12 +6,15 @@
 ## 特点
 
 **支持的命令**
- - [ ] `/give`
- - [ ] `/item`
- - [ ] `/clear`
+ - [x] `/give`
+ - [x] `/item`
+ - [x] `/clear`
+ - [x] `/summon` for 'Firework' and 'Item'
  - [ ] `/setblock` (Loot Table)
  - [ ] `/fill` (Loot Table)
- - [ ] 选择器 (以 `@` 开头，比如 `@a[nbt={...}]`)
+ - [x] 选择器 (以 `@` 开头，比如 `@a[nbt={...}]`)
+ - [ ] Loot Table
+ - [ ] Item modifier
 
 ## 开始使用
 等待补充。

@@ -190,7 +190,7 @@ function splitTagAndComponents(text) {
 }
 function parseSelectorArg(selector) {
     let idx = selector.indexOf("[");
-    if (idx == -1) return { mode: selector };
+    if (idx == -1) return { player: selector };
     let idy = selector.lastIndexOf("]");
     let target = selector.substring(0, idx);
     let tag = selector.substring(idx + 1, idy);
@@ -248,17 +248,29 @@ function parseComponents(components) {
     }
     return parseValues(components, ",", "=");
 }
-function toItemText(itemObj) {
+function toSelectorText(selectorObj, splitChar = '='){
+    let id = selectorObj.player;
+    let components = "";
+    if (selectorObj.components != null) {
+        for (let key in selectorObj.components) {
+            components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(selectorObj.components[key])}`;
+        }
+        components = `[${components}]`
+    }
+
+    let result = `${id}${components}`;
+    return result;
+}
+function toItemText(itemObj, splitChar = '=') {
     let id = itemObj.id;
     let components = "";
     let tag = "";
     if (itemObj.components != null) {
         for (let key in itemObj.components) {
-            components += (components == "" ? "" : ",") + `${key}=${NBTools.ToString(itemObj.components[key])}`;
+            components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(itemObj.components[key])}`;
         }
         components = `[${components}]`
     }
-
     let result = `${id}${components}${tag}`;
     return result;
 }
@@ -266,4 +278,4 @@ function toItemText(itemObj) {
 
 
 
-module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue }
+module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue,toSelectorText }

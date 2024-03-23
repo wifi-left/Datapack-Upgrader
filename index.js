@@ -1,4 +1,4 @@
-const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, toItemText, deleteNameSpace } = require("./mccommand.js");
+const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, toItemText, deleteNameSpace, toSelectorText } = require("./mccommand.js");
 const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMATION, ITEMSLOT_TRANSFORMATION, FIREWORK_TRANSFORMATION, FLAGSCOLOR_TRANSFORMATION } = require("./transformations.js");
 const { ERROR_MESSAGES } = require("./ErrorMessages.js");
 const fs = require("fs");
@@ -82,8 +82,40 @@ function transformCommand(command) {
 
     try {
         switch (cmdRootR) {
+            case 'summon':
+                if (comArgs.length < 2) {
+                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
+                    return command;
+                }
+                if (comArgs.length < 5) {
+                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
+                    return command;
+                    //summon s x y z
+                }
+                if (comArgs.length == 5) {
+                    return command;
+                }
+                let result = `${comArgs[0]} ${comArgs[1]} ${comArgs[2]} ${comArgs[3]} ${comArgs[4]} ${NBTools.ToString(transformEntityTags(NBTools.ParseNBT(comArgs[5]), comArgs[1]))}`;
+                return result;
+            case 'particle':
+                if (comArgs.length < 2) {
+                    writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
+                    return command;
+                }
+                if (comArgs[1] == 'entity_effect') {
+                    writeLine("## WARNING: Particle 'entity_effect' takes color argument when spawned from command '/particle entity_effect <r> <g> <b> <a>'.")
+                }
             case 'clear':
-                
+                if (comArgs.length < 2) {
+                    return command;
+                } else if (comArgs.length == 2) {
+                    let selector = transformSelector(comArgs[1]);
+                    return `${cmdRoot} ${selector}`;
+                } else {
+                    let selector = transformSelector(comArgs[1]);
+                    let item = transformItem(comArgs[2], "~");
+                    return `${cmdRoot} ${selector} ${item}`;
+                }
             case 'execute':
                 let i = 0;
                 let tmp = "";
@@ -160,6 +192,18 @@ function transformCommand(command) {
 
 
                 }
+            default:
+                // let i = 0;
+                let tmpp = "";
+                for (let j = 0; j < comArgs.length; j++) {
+                    if (comArgs[j].startsWith("@")) {
+                        let selector = transformSelector(comArgs[j]);
+                        tmpp += (tmpp == "" ? "" : " ") + selector;
+                    } else {
+                        tmpp += (tmpp == "" ? "" : " ") + comArgs[j];
+                    }
+                }
+                return tmpp;
             // case 'clear':
         }
     } catch (error) {
@@ -171,13 +215,15 @@ function transformCommand(command) {
 
 function transformSelector(selectorText) {
     let selector = parseSelectorArg(selectorText);
+    if (selector.components != undefined) if (selector.components.nbt != undefined) selector.components.nbt = transformEntityTags(NBTools.ParseNBT(selector.components.nbt), "player");
+
     // console.log(selector)
     // TODO: 转换 selector 中 nbt
-    return selectorText;
+    return toSelectorText(selector);
 }
 function transformEntityItemTag(itemTag) {
     let id = itemTag.id;
-    let count = itemTag.Count;
+    let count = getNbtContent(itemTag.Count);
     let tag = itemTag.tag;
     let slot = itemTag.Slot;
     let components = null;
@@ -186,7 +232,7 @@ function transformEntityItemTag(itemTag) {
         components = transformItemTags(tag);
         result['components'] = {};
         for (var key in components) {
-            result['components'][warpKey(key)] = components[key];
+            result['components']["minecraft:" + (key)] = components[key];
         }
     }
     if (slot != undefined) {
@@ -197,7 +243,7 @@ function transformEntityItemTag(itemTag) {
 }
 function transformItemItemsTag(itemTag) {
     let id = itemTag.id;
-    let count = itemTag.Count;
+    let count = getNbtContent(itemTag.Count);
     let tag = itemTag.tag;
     let slot = itemTag.Slot;
     let components = null;
@@ -244,7 +290,7 @@ function transformBlock(blockText) {
     }
     return toItemText(item);
 }
-function transformItem(itemText) {
+function transformItem(itemText, splitChar = '=') {
     let item = parseItemArg(itemText);
     // console.log(NBTools.ToString(item.tags))
     if (item.components != null) {
@@ -254,18 +300,185 @@ function transformItem(itemText) {
         let transformedComponent = transformItemTags(item.tags, item.id);
         item.components = transformedComponent;
     }
-    return toItemText(item);
+    return toItemText(item, splitChar);
+}
+function transFormOldPos(pos) {
+    return [pos.X, pos.Y, pos.Z];
 }
 function transformBlockTags(tag) {
+    // 1. 箱子
+    // 2. 
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
+    if (tag['BeamTarget'] != undefined) {
+        tag['beam_target'] = tag['BeamTarget'];
+        delete tag['BeamTarget'];
+    }
+    if (tag['custom_potion_effects'] != undefined) {
+        let custom_potion_effects = tag['custom_potion_effects']
+        if (tag['item'] == undefined) {
+            tag['item'] = { id: "minecraft:tipped_arrow", count: 1, components: { "minecraft:potion_contents": {} } }
+        }
+        tag['item']['components']["minecraft:potion_contents"]['custom_effects'] = custom_potion_effects;
+        delete tag['custom_potion_effects'];
+    }
+    if (tag['CustomPotionColor'] != undefined) {
+        let color = tag['CustomPotionColor']
+        if (tag['item'] == undefined) {
+            tag['item'] = { id: "minecraft:tipped_arrow", count: 1, components: { "minecraft:potion_contents": {} } }
+        }
+        tag['item']['components']["minecraft:potion_contents"]['custom_color'] = color;
+        delete tag['CustomPotionColor'];
+    }
+    if (tag['Potion'] != undefined) {
+        if (deleteNameSpace(entityId) == 'area_effect_cloud') {
+            if (tag['potion_contents'] == undefined) {
+                tag['potion_contents'] = {}
+            }
+            tag['potion_contents'].potion = tag['Potion'];
+        } else {
+            let potion = tag['Potion']
+            if (tag['item'] == undefined) {
+                tag['item'] = { id: "minecraft:tipped_arrow", count: 1, components: { "minecraft:potion_contents": {} } }
+            }
+            tag['item']['components']["minecraft:potion_contents"]['potion'] = potion;
+            delete tag['Potion'];
+        }
 
+    }
+    if (tag['effects'] != undefined) {
+        if (tag['potion_contents'] == undefined) {
+            tag['potion_contents'] = {}
+        }
+        tag['potion_contents'].custom_effects = tag['effects'];
+    }
+    if (tag['Color'] != undefined) {
+        if (tag['potion_contents'] == undefined) {
+            tag['potion_contents'] = {}
+        }
+        tag['potion_contents'].custom_color = tag['Color'];
+    }
+    if (tag['FireworksItem'] != undefined) {
+        tag['FireworksItem'] = transformEntityItemTag(tag['FireworksItem']);
+    }
+    if (tag['ArmorItems'] != undefined) {
+
+        for (let i in tag['ArmorItems']) {
+            tag['ArmorItems'][i] = transformEntityItemTag(tag['ArmorItems'][i]);
+        }
+    }
+    if (tag['DecorItem'] != undefined) {
+        tag['DecorItem'] = transformEntityItemTag(tag['DecorItem']);
+    }
+    if (tag['HandItems'] != undefined) {
+        for (let i in tag['HandItems']) {
+            tag['HandItems'][i] = transformEntityItemTag(tag['HandItems'][i]);
+        }
+    }
+    if (tag['FlowerPos'] != undefined) {
+        tag['hive_pos'] = tag['FlowerPos'];
+        delete tag['FlowerPos'];
+    }
+    if (tag['HivePos'] != undefined) {
+        tag['flower_pos'] = tag['HivePos'];
+        delete tag['HivePos'];
+    }
+
+    if (tag['PatrolTarget'] != undefined) {
+        tag['patrol_target'] = tag['PatrolTarget'];
+        delete tag['PatrolTarget'];
+    }
+    if (tag['WanderTarget'] != undefined) {
+        tag['wander_target'] = tag['WanderTarget'];
+        delete tag['WanderTarget'];
+    }
+    if (tag['Leash'] != undefined) {
+        tag['leash'] = tag['Leash'];
+        delete tag['Leash'];
+    }
+    if (tag['Item'] != undefined) {
+        tag['Item'] = transformEntityItemTag(tag['Item']);
+    }
+    if (tag['Inventory'] != undefined) {
+        tag['Inventory'] = transformBlockItemTag(tag['Inventory'])
+    }
+    if (tag['SelectedItem'] != undefined) {
+        tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
+    }
+    return tag;
 }
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
     for (let key in tag) {
         switch (key) {
+            case 'HideFlags':
+                let hiddenflags = tag[key];
+                if (hiddenflags & (1 << 0)) {
+                    if (components['enchantments'] == undefined) {
+                        components['enchantments'] = { levels: {} };
+                    }
+                    components['enchantments']['show_in_tooltip'] = false;
+
+                }
+                if (hiddenflags & (1 << 1)) {
+                    if (components['attribute_modifiers'] == undefined) {
+                        components['attribute_modifiers'] = { modifiers: [] };
+                    }
+                    components['attribute_modifiers']['show_in_tooltip'] = false;
+                }
+                if (hiddenflags & (1 << 2)) {
+                    if (getNbtContent(tag['Unbreakable']) != undefined) {
+                        if (components['unbreakable'] == undefined) {
+                            components['unbreakable'] = {};
+                        }
+                        components['unbreakable']['show_in_tooltip'] = false;
+                    }
+
+                }
+                if (hiddenflags & (1 << 3)) {
+                    if ((tag['CanDestroy']) != undefined) {
+                        if (components['can_break'] == undefined) {
+                            components['can_break'] = {};
+                        }
+                        components['can_break']['show_in_tooltip'] = false;
+                    }
+
+                }
+                if (hiddenflags & (1 << 4)) {
+                    if ((tag['CanPlaceOn']) != undefined) {
+                        if (components['can_place_on'] == undefined) {
+                            components['can_place_on'] = {};
+                        }
+                        components['can_place_on']['show_in_tooltip'] = false;
+                    }
+
+                }
+                if (hiddenflags & (1 << 5)) {
+                    if (components['stored_enchantments'] == undefined) {
+                        components['stored_enchantments'] = { levels: {} };
+                    }
+                    components['stored_enchantments']['show_in_tooltip'] = false;
+                }
+                if (hiddenflags & (1 << 6)) {
+                    if ((tag['display']) != undefined) {
+                        if ((tag['display']['color']) != undefined) {
+                            if (components['dyed_color'] == undefined) {
+                                components['dyed_color'] = {};
+                            }
+                            components['dyed_color']['show_in_tooltip'] = false;
+                        }
+
+                    }
+                }
+                if (hiddenflags & (1 << 7)) {
+                    if (components['trim'] == undefined) {
+                        components['trim'] = {};
+                    }
+                    components['trim']['show_in_tooltip'] = false;
+                }
+                break;
+
             case 'StoredEnchantments':
                 components['stored_enchantments'] = { levels: {} };
                 for (let i in tag[key]) {
@@ -492,7 +705,7 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'LodestonePos':
                 if (components['lodestone_tracker'] == undefined) components['lodestone_tracker'] = { target: {} };
-                components['lodestone_tracker']['target']['pos'] = tag[key];
+                components['lodestone_tracker']['target']['pos'] = transFormOldPos(tag[key]);
                 break;
             case 'LodestoneDimension':
                 if (components['lodestone_tracker'] == undefined) components['lodestone_tracker'] = { target: {} };

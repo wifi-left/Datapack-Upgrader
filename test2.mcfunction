@@ -1,2 +1,2 @@
-execute as @s positioned 1 1 1 run give @s chest{display:{Name:'"\\u00a7a勇者的宝箱。"'},BlockEntityTag:{Items:[{id:"minecraft:diamond",Count:1b,Slot:10b,tag:{display:{Name:'"\\u00a7d勇者的钻石"'}}}]}}
-give @s bundle{display:{Name:'"\\u00a7a勇者的宝箱。"'},Items:[{id:"minecraft:diamond",Count:1b,tag:{display:{Name:'"\\u00a7d勇者的钻石"'}}}]}
+give @p diamond{s:1,ss:2}
+give @p[nbt={Inventory:[{id:"minecraft:diamond",Count:1b,tag:{s:1}}]}] diamond_pickaxe{HideFlags:127}
