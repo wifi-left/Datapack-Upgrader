@@ -8,7 +8,7 @@ console.warn("###")
 console.warn("### Datapack Upgrader v" + package.version + " by " + package.author)
 console.warn("### If you encounter a problem, make a issue on " + package.homepage)
 console.warn("### ")
-const { NBTools, getNbtContent, getNbtType } = require("./NBTool.js");
+const { NBTools, getNbtContent, getNbtType, warpKey } = require("./NBTool.js");
 var OutputFile = null;
 var debugMode = false;
 function writeLine(...lines) {
@@ -56,7 +56,6 @@ while (i < argvs.length) {
     }
     i++;
 }
-
 function transformCommand(command) {
     if (command == "") return "";
     let comArgs = [];
@@ -83,6 +82,29 @@ function transformCommand(command) {
 
     try {
         switch (cmdRootR) {
+            case 'clear':
+                
+            case 'execute':
+                let i = 0;
+                let tmp = "";
+                while (i < comArgs.length && comArgs[i] != 'run') {
+                    if (comArgs[i].startsWith("@")) {
+                        let selector = transformSelector(comArgs[i]);
+                        tmp += (tmp == "" ? "" : " ") + selector;
+                    } else {
+                        tmp += (tmp == "" ? "" : " ") + comArgs[i];
+                    }
+                    i++;
+                }
+                i++; // Skip 'run'
+                if (i < comArgs.length) {
+                    let executeCommand = "";
+                    for (let j = i; j < comArgs.length; j++) {
+                        executeCommand += (executeCommand == "" ? "" : " ") + comArgs[j];
+                    }
+                    tmp += " run " + transformCommand(executeCommand);
+                }
+                return tmp;
             case 'give':
                 if (comArgs.length <= 2) {
                     writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
@@ -153,6 +175,63 @@ function transformSelector(selectorText) {
     // TODO: 转换 selector 中 nbt
     return selectorText;
 }
+function transformEntityItemTag(itemTag) {
+    let id = itemTag.id;
+    let count = itemTag.Count;
+    let tag = itemTag.tag;
+    let slot = itemTag.Slot;
+    let components = null;
+    let result = { id: id, count: count };
+    if (tag != undefined) {
+        components = transformItemTags(tag);
+        result['components'] = {};
+        for (var key in components) {
+            result['components'][warpKey(key)] = components[key];
+        }
+    }
+    if (slot != undefined) {
+        result['Slot'] = slot;
+    }
+
+    return result;
+}
+function transformItemItemsTag(itemTag) {
+    let id = itemTag.id;
+    let count = itemTag.Count;
+    let tag = itemTag.tag;
+    let slot = itemTag.Slot;
+    let components = null;
+    let result = { slot: 0, item: {} };
+    let result1 = { id: id, count: count };
+    if (tag != undefined) {
+        components = transformItemTags(tag);
+        result1['components'] = {};
+        for (var key in components) {
+            result1['components'][(`minecraft:${key}`)] = components[key];
+        }
+    }
+    if (slot != undefined) {
+        result['slot'] = slot;
+    }
+    result['item'] = result1;
+
+    return result;
+}
+function transformItemBlockEntityItemTag(blockItemArrays) {
+    let result = [];
+    for (let i in blockItemArrays) {
+        result.push(transformItemItemsTag(blockItemArrays[i]));
+
+    }
+    return result;
+}
+function transformBlockItemTag(blockItemArrays) {
+    let result = [];
+    for (let i in blockItemArrays) {
+        result.push(transformEntityItemTag(blockItemArrays[i]));
+    }
+    return result;
+}
 function transformBlock(blockText) {
     let item = parseItemArg(blockText);
     // console.log(NBTools.ToString(item.tags))
@@ -179,6 +258,9 @@ function transformItem(itemText) {
 }
 function transformBlockTags(tag) {
     return tag;
+}
+function transformEntityTags(tag, entityId = undefined) {
+
 }
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
@@ -288,9 +370,9 @@ function transformItemTags(tag, itemId = undefined) {
             case 'ChargedProjectiles':
                 components['charged_projectiles'] = (tag[key]);
                 break;
-            case 'Item':
+            case 'Items':
                 if (deleteNameSpace(itemId) == 'bundle')
-                    components['bundle_contents'] = (tag[key]);
+                    components['bundle_contents'] = transformBlockItemTag(tag[key]);
                 break;
             case 'Decorations':
                 components['map_decorations'] = {};
@@ -441,7 +523,7 @@ function transformItemTags(tag, itemId = undefined) {
                 if (typeof t === 'object') {
                     let name = t['Name'];
                     let properties = t['Properties'];
-                    if (properties != undefined) writeLine("## WARNING: We found that you used 'Properties' tag for your player_head. We didn't and won't support it. If you just need the feature, please release an issue on GitHub! And the tag also has a problem: ")
+                    if (properties != undefined) writeLine("## WARNING: We found that you used 'Properties' tag for your player_head. We didn't and won't support it. If you just need the feature, please release an issue on GitHub! And the tag also has a problem: https://bugs.mojang.com/browse/MC-268000")
                     let id = t['Id'];
                 } else {
                     components['profile'] = t;
@@ -451,43 +533,59 @@ function transformItemTags(tag, itemId = undefined) {
                 let base_color = transformId(FLAGSCOLOR_TRANSFORMATION, tag[key]['Base']);
                 let banner_patterns = tag[key]['Patterns'];
                 let pot_decorations = tag[key]['sherds'];
-                let container = tag[key]['Items'];
+                let container = transformItemBlockEntityItemTag(tag[key]['Items']);
                 let bees = tag[key]['Bees'];
                 let lock = tag[key]['Lock'];
                 let LootTable = tag[key]['LootTable']; //container_loot = {loot_table:,seed:}
                 let LootTableSeed = tag[key]['LootTableSeed'];
                 if (note_block_sound != undefined) {
                     components['note_block_sound'] = note_block_sound;
+                    delete tag[key]['note_block_sound'];
                 }
                 if (base_color != undefined) {
                     components['base_color'] = base_color;
+                    delete tag[key]['Base'];
                 }
                 if (banner_patterns != undefined) {
                     components['banner_patterns'] = banner_patterns;
+                    delete tag[key]['Patterns'];
                 }
                 if (pot_decorations != undefined) {
                     components['pot_decorations'] = pot_decorations;
+                    delete tag[key]['sherds'];
                 }
                 if (container != undefined) {
                     components['container'] = container;
+                    delete tag[key]['Items'];
                 }
                 if (bees != undefined) {
                     components['bees'] = bees;
+                    delete tag[key]['Bees'];
                 }
                 if (lock != undefined) {
                     components['lock'] = lock;
+                    delete tag[key]['Lock'];
                 }
                 if (LootTable != undefined) {
-                    components['container_loot'] = {loot_table:LootTable};
+                    components['container_loot'] = { loot_table: LootTable };
+                    delete tag[key]['LootTable'];
                     //container_loot = 
                     if (LootTableSeed != undefined) {
                         components['container_loot']['seed'] = LootTableSeed;
+                        delete tag[key]['LootTableSeed'];
                     }
                 }
-                writeLine("## WARNING: We found that you used 'BlockEntityTag' tag for your item. You need to add a 'id' tag (for example: 'id: \"minecraft:oak\"') due to new changes.")
-                components['block_entity_data'] = tag[key];
+                let sum = 0;
+                for (let i in tag[key]) sum++;
+                if (sum != 0) {
+                    writeLine("## WARNING: We found that you used 'BlockEntityTag' tag for your item. You may need to add a 'id' tag (for example: 'id: \"minecraft:oak\"') due to new changes.")
+                    components['block_entity_data'] = tag[key];
+                }
+
+                break;
             case 'BlockStateTag':
                 components['block_state'] = (tag[key]);
+                break;
             case 'CustomModelData':
                 components['custom_model_data'] = (tag[key]);
                 break;
