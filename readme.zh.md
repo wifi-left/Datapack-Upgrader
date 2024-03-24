@@ -20,6 +20,16 @@
  - [ ] Item modifier
 
 ## 开始使用
+### 下载源码
+你可以直接从 GitHub 下载源码后启动
+
+或者使用Git命令下载：
+```bash
+git clone https://github.com/wifi-left/Datapack-Upgrader.git
+```
+
+**你需要安装 Node.js 来使用本项目**
+
 ### 转换单个命令
 ```bash
 node index.js -c "<Your commands here>"

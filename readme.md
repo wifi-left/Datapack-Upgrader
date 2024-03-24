@@ -21,6 +21,16 @@ I'm still working on it.
  - [ ] Item modifier
 
 ## Get to start
+### Download the source code
+You can simply download zip file from GitHub.
+
+Or use git command:
+```bash
+git clone https://github.com/wifi-left/Datapack-Upgrader.git
+```
+
+You must install Node.js to use the project.
+
 ### Use in command mode:
 ```bash
 node index.js -c "<Your commands here>"
