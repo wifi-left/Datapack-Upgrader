@@ -3,6 +3,7 @@ const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMAT
 const { ERROR_MESSAGES } = require("./ErrorMessages.js");
 const fs = require("fs");
 const package = require("./package.json")
+const pathLib = require('path')
 
 console.warn("###")
 console.warn("### Datapack Upgrader v" + package.version + " by " + package.author)
@@ -13,7 +14,11 @@ var OutputFile = null;
 var debugMode = false;
 function writeLine(...lines) {
     for (let i = 0; i < lines.length; i++) {
-        console.log(lines[i])
+        if (OutputFile != null) {
+            OutputFile.write(lines[i] + "\r\n");
+        } else {
+            console.log(lines[i])
+        }
     }
 }
 function writeDebugLine(...lines) {
@@ -36,6 +41,42 @@ while (i < argvs.length) {
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j]));
         }
+    } else if (arg == '-O') {
+
+        i++;
+        if (i < argvs.length) {
+            let path = argvs[i];
+            let force = false;
+            i++;
+            if (i < argvs.length) {
+                if (argvs[i] == '-y') {
+                    force = true;
+                }
+            }
+            try {
+                writeDebugLine("## DEBUG: Save file to '" + path + "'")
+                let dir = pathLib.dirname(path)
+                if(!fs.existsSync(dir)){
+                    fs.mkdirSync(dir);
+                }
+                if (fs.existsSync(path)) {
+                    if (!force) {
+                        console.error("## ERROR: The file '" + path + "' already exists. Use '-y' after file path to force write the file.")
+                        continue;
+                    } else {
+                        fs.rmSync(path);
+                    }
+                }
+                if (OutputFile != null) {
+                    OutputFile.end();
+                }
+                OutputFile = fs.createWriteStream(path, { encoding: "utf8" });
+            } catch (error) {
+                console.error("## Error while writing file: " + error.message)
+                writeDebugLine(error);
+                continue;
+            }
+        }
     } else if (arg == '-I') {
         i++;
         if (i < argvs.length) {
@@ -56,6 +97,10 @@ while (i < argvs.length) {
     }
     i++;
 }
+if (OutputFile != null) {
+    OutputFile.end();
+}
+
 function transformDataPath(path, type) {
     if (path.startsWith("{")) {
         switch (type) {
