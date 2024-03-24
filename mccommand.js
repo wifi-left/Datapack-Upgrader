@@ -265,12 +265,16 @@ function toItemText(itemObj, splitChar = '=') {
     let id = itemObj.id;
     let components = "";
     let tag = "";
+    if(itemObj.tags != undefined){
+        tag = NBTools.ToString(itemObj.tags);
+    }
     if (itemObj.components != null) {
         for (let key in itemObj.components) {
             components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(itemObj.components[key])}`;
         }
         components = `[${components}]`
     }
+    
     let result = `${id}${components}${tag}`;
     return result;
 }

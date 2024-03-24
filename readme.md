@@ -11,8 +11,11 @@ I'm still working on it.
  - [x] `/item`
  - [x] `/clear`
  - [x] `/summon` for 'Firework' and 'Item'
- - [ ] `/setblock` for Loot Tables and other changes 
- - [ ] `/fill` for Loot Tables and other changes
+ - [x] `/setblock`
+ - [x] `/fill`
+ - [x] `/execute if block`
+ - [ ] `/execute if data`
+ - [ ] `/data`
  - [x] Other commands only for selector(Texts that start with `@` like `@a[nbt={...}]`)
  - [ ] Loot Table
  - [ ] Item modifier

@@ -1,5 +1,5 @@
 const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, toItemText, deleteNameSpace, toSelectorText } = require("./mccommand.js");
-const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMATION, ITEMSLOT_TRANSFORMATION, FIREWORK_TRANSFORMATION, FLAGSCOLOR_TRANSFORMATION } = require("./transformations.js");
+const { transformId, ENCHANTMENTS_TRANSFORMATION, ARRTIBUTEOPERATION_TRANSFORMATION, ITEMSLOT_TRANSFORMATION, FIREWORK_TRANSFORMATION, FLAGSCOLOR_TRANSFORMATION, DATAPATH_TRANSFORMATION } = require("./transformations.js");
 const { ERROR_MESSAGES } = require("./ErrorMessages.js");
 const fs = require("fs");
 const package = require("./package.json")
@@ -55,6 +55,48 @@ while (i < argvs.length) {
         }
     }
     i++;
+}
+function transformDataPath(path, type) {
+    if (path.startsWith("{")) {
+        switch (type) {
+            case 'block':
+                return transformBlockTags(path)
+            case 'entity':
+                return transformBlockTags(path)
+            default:
+                return transformEntityTags(transformBlockTags(path, ""));
+        }
+    }
+    for (let i in DATAPATH_TRANSFORMATION) {
+        let regexp = DATAPATH_TRANSFORMATION[i].regexp;
+        let replacement = DATAPATH_TRANSFORMATION[i].replace;
+        path = path.replace(regexp, replacement);
+    }
+    return path;
+}
+function dealWithDataCommandArg(comArgs, i) {
+    switch (comArgs[i]) {
+        case 'block':
+            let x = comArgs[++i];
+            let y = comArgs[++i];
+            let z = comArgs[++i];
+            var path = comArgs[++i];
+            path = transformDataPath(path, 'block');
+            return { result: ``, offset: i, path: path };
+        case 'entity':
+            let target = comArgs[++i];
+            transformSelector(target);
+            var path = comArgs[++i];
+            path = transformDataPath(path, 'entity');
+            return { result: ``, offset: i, path: path };
+        case 'storage':
+            let source = comArgs[++i];
+            var path = comArgs[++i];
+            path = transformDataPath(path, 'storage');
+            return { result: ``, offset: i, path: path };
+        default:
+            return { result: "", offset: i, path: "" };
+    }
 }
 function transformCommand(command) {
     if (command == "") return "";
@@ -114,13 +156,87 @@ function transformCommand(command) {
                 } else {
                     let selector = transformSelector(comArgs[1]);
                     let item = transformItem(comArgs[2], "~");
-                    return `${cmdRoot} ${selector} ${item}`;
+                    let extra = "";
+                    if (comArgs.length == 4) {
+                        extra = " " + comArgs[3];
+                    }
+                    return `${cmdRoot} ${selector} ${item}${extra}`;
                 }
+            case 'setblock':
+                //setblock x y z block
+                var tmp = "";
+                for (let i = 0; i < 4; i++) {
+                    if (comArgs[i] == undefined) {
+                        writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
+                        return command;
+                    }
+                    tmp += (tmp == "" ? "" : " ") + `${comArgs[i]}`;
+                }
+                let block = transformBlock(comArgs[4]);
+                tmp += " " + block;
+
+                for (let i = 5; i < comArgs.length; i++) {
+                    tmp += (tmp == "" ? "" : " ") + `${comArgs[i]}`;
+                }
+                return `${tmp}`;
+                break;
+            case 'fill':
+                //fill x y z x y z block
+                var tmp = "";
+                for (let i = 0; i < 7; i++) {
+                    if (comArgs[i] == undefined) {
+                        writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
+                        return command;
+                    }
+                    tmp += (tmp == "" ? "" : " ") + `${comArgs[i]}`;
+                }
+                if (comArgs.length >= 9) {
+                    let block = transformBlock(comArgs[7]);
+                    tmp += " " + block;
+                    if (comArgs[8] == 'replace') {
+                        let block2 = comArgs[9];
+                        if (block2 != undefined) {
+                            block2 = transformBlock(block2);
+                            tmp += " replace " + block2;
+                        }
+                    } else {
+                        for (let i = 8; i < comArgs.length; i++) {
+                            tmp += (tmp == "" ? "" : " ") + `${comArgs[i]}`;
+                        }
+                    }
+                    return `${tmp}`;
+                } else {
+                    let block = transformBlock(comArgs[7]);
+
+                    return `${tmp} ${block}`;
+                }
+                break;
             case 'execute':
-                let i = 0;
-                let tmp = "";
+                var tmp = "", i = 0;
                 while (i < comArgs.length && comArgs[i] != 'run') {
-                    if (comArgs[i].startsWith("@")) {
+                    if (comArgs[i] == 'if' || comArgs[i] == 'unless') {
+                        let ifOrUnless = comArgs[i];
+                        i++;//Skip if or unless
+                        let testType = comArgs[i];
+                        if (testType == 'data') {
+                            i++;
+                            let transformResult = dealWithDataCommandArg(comArgs, i);
+                            i = transformResult.offset;
+                            let result = transformResult.result;
+                            tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + result;
+                        } else if (testType == 'entity') {
+                            i++;
+                            let selector = transformSelector(comArgs[i]);
+                            tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + selector;
+                        } else if (testType == 'block') {
+                            let x = comArgs[++i];
+                            let y = comArgs[++i];
+                            let z = comArgs[++i];
+                            let block = transformBlock(comArgs[++i]);
+                            let result = `${x} ${y} ${z} ${block}`;
+                            tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + result;
+                        }
+                    } else if (comArgs[i].startsWith("@")) {
                         let selector = transformSelector(comArgs[i]);
                         tmp += (tmp == "" ? "" : " ") + selector;
                     } else {
@@ -299,15 +415,57 @@ function transformItem(itemText, splitChar = '=') {
     if (item.tags != null) {
         let transformedComponent = transformItemTags(item.tags, item.id);
         item.components = transformedComponent;
+        item.tags = undefined;
     }
     return toItemText(item, splitChar);
 }
 function transFormOldPos(pos) {
     return [pos.X, pos.Y, pos.Z];
 }
+function transformProfileProperties(property) {
+    let Signature = property['Signature'];
+    let Value = property['Signature'];
+    let name = 'textures';
+    return { name: name, value: Value, signature: Signature };
+}
+function transformProfile(tag) {
+    let result = {};
+    if (typeof tag === 'object') {
+        let name = tag['Name'];
+        let properties = tag['Properties'];
+        if (properties != undefined) writeLine("## WARNING: We found that you used 'Properties' tag for your player_head. We strongly recommand that you shouldn't use this tag! Due to a problem: https://bugs.mojang.com/browse/MC-268000")
+        let id = tag['Id'];
+        result = { name: name, id: id };
+        if (properties != undefined) {
+            result['properties'] = [];
+            if (Array.isArray(properties['textures'])) {
+                for (let i in properties['textures']) {
+                    result['properties'].push(transformProfileProperties(properties['textures'][i]))
+                }
+            }
+        }
+    } else {
+        result = tag;
+    }
+    return result;
+}
 function transformBlockTags(tag) {
-    // 1. 箱子
-    // 2. 
+    if (tag['SkullOwner'] != undefined) {
+        let t = tag['SkullOwner'];
+        tag['profile'] = transformProfile(t);
+        delete SkullOwner;
+    }
+    if (tag['Items'] != undefined) {
+        tag['Items'] = transformBlockItemTag(tag['Items']);
+    }
+    if (tag['FlowerPos'] != undefined) {
+        tag['flower_pos'] = transformBlockItemTag(tag['FlowerPos']);
+        delete tag['FlowerPos'];
+    }
+    if (tag['ExitPortal'] != undefined) {
+        tag['exit_portal'] = transformBlockItemTag(tag['ExitPortal']);
+        delete tag['ExitPortal'];
+    }
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
@@ -733,14 +891,7 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'SkullOwner':
                 let t = tag[key];
-                if (typeof t === 'object') {
-                    let name = t['Name'];
-                    let properties = t['Properties'];
-                    if (properties != undefined) writeLine("## WARNING: We found that you used 'Properties' tag for your player_head. We didn't and won't support it. If you just need the feature, please release an issue on GitHub! And the tag also has a problem: https://bugs.mojang.com/browse/MC-268000")
-                    let id = t['Id'];
-                } else {
-                    components['profile'] = t;
-                }
+                components['profile'] = transformProfile(t);
             case 'BlockEntityTag':
                 let note_block_sound = tag[key]['note_block_sound'];
                 let base_color = transformId(FLAGSCOLOR_TRANSFORMATION, tag[key]['Base']);

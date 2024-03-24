@@ -10,8 +10,11 @@
  - [x] `/item`
  - [x] `/clear`
  - [x] `/summon` for 'Firework' and 'Item'
- - [ ] `/setblock` (Loot Table)
- - [ ] `/fill` (Loot Table)
+ - [x] `/setblock`
+ - [x] `/fill`
+ - [x] `/execute if block`
+ - [ ] `/execute if data`
+ - [ ] `/data`
  - [x] 选择器 (以 `@` 开头，比如 `@a[nbt={...}]`)
  - [ ] Loot Table
  - [ ] Item modifier
