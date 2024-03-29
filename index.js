@@ -7,7 +7,7 @@ const pathLib = require('path')
 
 console.warn("###")
 console.warn("### Datapack Upgrader v" + package.version + " by " + package.author)
-console.warn("### If you encounter a problem, make a issue on " + package.homepage)
+console.warn("### If you encounter a problem, make an issue on " + package.homepage)
 console.warn("### ")
 const { NBTools, getNbtContent, getNbtType, warpKey } = require("./NBTool.js");
 var OutputFile = null;
@@ -90,6 +90,10 @@ while (i < argvs.length) {
                 writeDebugLine(error);
                 continue;
             }
+            writeLine("##")
+            writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
+            writeLine("## If you encounter a problem, make an issue on " + package.homepage)
+            writeLine("## ")
             let arrs = content.replace("\r", "").split("\n");
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j].trim()));
