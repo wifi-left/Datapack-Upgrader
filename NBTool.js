@@ -85,6 +85,7 @@ function getNbtType(nbttext) {
     }
 }
 function warpKey(key) {
+
     if (typeof key !== 'string')
         throw new SyntaxError("Argument is not a String");
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
@@ -120,7 +121,8 @@ const NBTools = {
                 return NbtObject;
             case 'compound':
                 for (let key in NbtObject) {
-                    result += (result == "" ? "" : ",") + warpKey(key) + ":" + this.ToString(NbtObject[key]);
+                    if (NbtObject[key] != undefined)
+                        result += (result == "" ? "" : ",") + warpKey(key) + ":" + this.ToString(NbtObject[key]);
                 }
                 return "{" + result + "}";
             case 'list':
@@ -281,6 +283,7 @@ const NBTools = {
                         if (StringBuffer === "" && NativeBuffer === "") {
                             throw new SyntaxError();
                         }
+                        if (StringBuffer.startsWith("S;")) StringBuffer = StringBuffer.substring(2);
                         Keys.push(StringBuffer !== "" ? StringBuffer : NativeBuffer); // 添加 变量名到堆栈
                         if (StringBuffer === "") {
                             NativeBuffer = "";

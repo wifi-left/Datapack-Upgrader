@@ -10,6 +10,7 @@ function defaultOrValue(item, defaultValue = undefined) {
     return item;
 }
 function deleteNameSpace(name) {
+    if (name == undefined) return "";
     if (name.startsWith("minecraft:")) return name.substring("minecraft:".length);
     return name;
 }
@@ -248,7 +249,7 @@ function parseComponents(components) {
     }
     return parseValues(components, ",", "=");
 }
-function toSelectorText(selectorObj, splitChar = '='){
+function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
     let components = "";
     if (selectorObj.components != null) {
@@ -265,7 +266,7 @@ function toItemText(itemObj, splitChar = '=') {
     let id = itemObj.id;
     let components = "";
     let tag = "";
-    if(itemObj.tags != undefined){
+    if (itemObj.tags != undefined) {
         tag = NBTools.ToString(itemObj.tags);
     }
     if (itemObj.components != null) {
@@ -274,7 +275,7 @@ function toItemText(itemObj, splitChar = '=') {
         }
         components = `[${components}]`
     }
-    
+
     let result = `${id}${components}${tag}`;
     return result;
 }
@@ -282,4 +283,4 @@ function toItemText(itemObj, splitChar = '=') {
 
 
 
-module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue,toSelectorText }
+module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue, toSelectorText }

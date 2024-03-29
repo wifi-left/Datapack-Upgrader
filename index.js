@@ -56,7 +56,7 @@ while (i < argvs.length) {
             try {
                 writeDebugLine("## DEBUG: Save file to '" + path + "'")
                 let dir = pathLib.dirname(path)
-                if(!fs.existsSync(dir)){
+                if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir);
                 }
                 if (fs.existsSync(path)) {
@@ -100,47 +100,269 @@ while (i < argvs.length) {
 if (OutputFile != null) {
     OutputFile.end();
 }
+function toNbtTextFromPathAndData(path, data = "") {
+    let text = path;
+    let pathStack = [];
+    var stack = [];
+    var tempStr = '';
+    var fanXieGang = 0;
+    for (var i = 0; i < text.length; i++) {
+        if (text[i] == "\"" && fanXieGang == 0) {
+            tempStr += text[i];
+            if (stack[stack.length - 1] == "\"") stack.pop()
+            else stack.push("\"");
+        } else if (stack[stack.length - 1] != '"' && stack[stack.length - 1] != "'") {
+            if (text[i] == '[') {
+                pathStack.push(tempStr)
+                tempStr = text[i];
+                // if (stack[stack.length-1] == '"') stack.pop()
+                stack.push('[');
+            } else if (text[i] == ']') {
+                if (stack[stack.length - 1] == '[') { tempStr += text[i]; pathStack.push(tempStr); tempStr = ""; stack.pop(); }
+                else {
+                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                }
+            } else if (text[i] == '.') {
+                if (tempStr != "") {
+                    pathStack.push(tempStr);
+                    tempStr = "";
+                    stack.pop();
+                }
+            } else {
+                tempStr += text[i];
+            }
+        } else {
+            tempStr += text[i];
+        }
+        if (fanXieGang) fanXieGang = 0;
+        else if (text[i] == '\\') {
+            fanXieGang = 1;
+        }
+    }
+    if (stack.length > 0) {
+        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
+    }
+    if (fanXieGang > 0) {
+        throw SyntaxError("Escape error.");
+    }
+    if (tempStr != '') {
+        pathStack.push(tempStr);
+    }
+    let resObj = {};
+    if (pathStack.length >= 1) {
+        resObj = data;
+        for (let i = pathStack.length - 1; i >= 0; i--) {
+            let kname = pathStack[i];
+            let newobj = JSON.parse(JSON.stringify(resObj));
+            if (kname.startsWith('[')) {
+                kname = JSON.parse(kname);
+                let arr = [];
+                arr[kname[0]] = newobj;
+                resObj = arr;
+            } else {
+                if (kname.startsWith('"')) {
+                    kname = JSON.parse(kname);
+                }
+                resObj = {};
+                resObj[kname] = newobj;
+            }
 
+        }
+        return resObj;
+    } else return data;
+
+}
+function getNbtPathAndContent(nbt) {
+
+    let path = "", data;
+    let nbtCache = nbt;
+    if (typeof nbt === 'object') {
+        let flag = true;
+        while (nbtCache != undefined && flag) {
+
+            flag = false;
+            let keyTmp = "";
+            if (typeof nbtCache !== 'object') break;
+            if (Array.isArray(nbtCache)) {
+                for (let i = 0; i < nbtCache.length; i++) {
+                    if (nbtCache[i] != undefined && flag) {
+                        flag = false;
+                        break;
+                    } else if (nbtCache[i] != undefined) {
+                        keyTmp = i;
+                        flag = true;
+                    }
+                }
+                if (flag) {
+                    path = path + "[" + keyTmp + "]";
+                    nbtCache = nbtCache[keyTmp];
+
+                } else {
+                    break;
+                }
+            } else {
+                for (let key in nbtCache) {
+                    if (nbtCache[key] != undefined && flag) {
+                        flag = false;
+                        break;
+                    } else if (nbtCache[key] != undefined) {
+                        keyTmp = (key);
+                        flag = true;
+                    }
+
+                }
+                if (flag) {
+                    path = path + "." + warpKey(keyTmp);
+                    nbtCache = nbtCache[keyTmp];
+                } else {
+                    break;
+                }
+            }
+        }
+        if (nbtCache != undefined) {
+            data = nbtCache;
+        }
+        try {
+            return { path: path, data: NBTools.ToString(data) };
+
+        } catch (e) {
+            writeDebugLine(e);
+            return { path: path, data: data };
+
+        }
+    } else {
+        return nbt;
+    }
+}
+function transformDataPathWithArgs(path, type, data) {
+
+    try {
+        let nbt = toNbtTextFromPathAndData(path, NBTools.ParseNBT(data));
+        switch (type) {
+            case 'block':
+                nbt = transformBlockTags(nbt)
+                break;
+            case 'entity':
+                nbt = transformEntityTags(nbt)
+                break;
+            default:
+                writeLine("## WARNING: 'storage' will not be transformed because we don't know what to do with it.")
+                return { path: path, data: (data) };
+        }
+        let result = getNbtPathAndContent(nbt);
+        if (result.path.startsWith(".")) {
+            result.path = result.path.substring(1);
+        }
+        return result;
+    } catch (e) {
+        writeDebugLine(e);
+        for (let i in DATAPATH_TRANSFORMATION) {
+            let regexp = DATAPATH_TRANSFORMATION[i].regexp;
+            let replacement = DATAPATH_TRANSFORMATION[i].replace;
+            path = path.replace(regexp, replacement);
+        }
+
+    }
+    return { path: path, data: data };
+}
 function transformDataPath(path, type) {
+    let data = "FLAG";
     if (path.startsWith("{")) {
         switch (type) {
             case 'block':
-                return transformBlockTags(path)
+                return NBTools.ToString(transformBlockTags(NBTools.ParseNBT(path)))
             case 'entity':
-                return transformBlockTags(path)
+                return NBTools.ToString(transformEntityTags(NBTools.ParseNBT(path)))
             default:
-                return transformEntityTags(transformBlockTags(path, ""));
+                writeLine("## WARNING: 'storage' will not be transformed because we don't know what to do with it.")
+                return path;
         }
+    } else {
+        try {
+            let nbt = toNbtTextFromPathAndData(path, data);
+            switch (type) {
+                case 'block':
+                    nbt = transformBlockTags(nbt)
+                    break;
+                case 'entity':
+                    nbt = transformEntityTags(nbt)
+                    break;
+                default:
+                    writeLine("## WARNING: 'storage' will not be transformed because we don't know what to do with it.")
+            }
+            // console.log(nbt)
+            let result = getNbtPathAndContent(nbt);
+            if (result.path.startsWith(".")) {
+                result.path = result.path.substring(1);
+            }
+
+            return result.path;
+        } catch (e) {
+            writeDebugLine(e);
+            for (let i in DATAPATH_TRANSFORMATION) {
+                let regexp = DATAPATH_TRANSFORMATION[i].regexp;
+                let replacement = DATAPATH_TRANSFORMATION[i].replace;
+                path = path.replace(regexp, replacement);
+            }
+        }
+
     }
-    for (let i in DATAPATH_TRANSFORMATION) {
-        let regexp = DATAPATH_TRANSFORMATION[i].regexp;
-        let replacement = DATAPATH_TRANSFORMATION[i].replace;
-        path = path.replace(regexp, replacement);
-    }
+
     return path;
 }
-function dealWithDataCommandArg(comArgs, i) {
+function dealWithDataCommandArgWithArgs(comArgs, i) {
+    var content = null;
+    var result = null;
     switch (comArgs[i]) {
         case 'block':
             let x = comArgs[++i];
             let y = comArgs[++i];
             let z = comArgs[++i];
             var path = comArgs[++i];
-            path = transformDataPath(path, 'block');
-            return { result: ``, offset: i, path: path };
+            result = { result: `block ${x} ${y} ${z}`, type: "block", offset: i, path: path };
+
+            return result;
         case 'entity':
             let target = comArgs[++i];
-            transformSelector(target);
+            target = transformSelector(target);
             var path = comArgs[++i];
+            result = { result: `entity ${target}`, type: "entity", offset: i, path: path };
+
+            return result;
+        case 'storage':
+            let source = comArgs[++i];
+            var path = comArgs[++i];
+            result = { result: `storage ${source}`, type: "storage", offset: i, path: path };
+            return result;
+        default:
+            return { result: "", offset: i, path: "" };
+    }
+}
+function dealWithDataCommandArgWithoutArgs(comArgs, i) {
+    switch (comArgs[i]) {
+        case 'block':
+            let x = comArgs[++i];
+            let y = comArgs[++i];
+            let z = comArgs[++i];
+            var path = comArgs[++i];
+            if (path == undefined) return { result: `block ${x} ${y} ${z}`, offset: i, path: "" };
+            path = transformDataPath(path, 'block');
+            return { result: `block ${x} ${y} ${z} ${path}`, offset: i, path: path };
+        case 'entity':
+            let target = comArgs[++i];
+            target = transformSelector(target);
+            var path = comArgs[++i];
+            if (path == undefined) return { result: `entity ${target}`, offset: i, path: "" };
             path = transformDataPath(path, 'entity');
-            return { result: ``, offset: i, path: path };
+            return { result: `entity ${target} ${path}`, offset: i, path: path };
         case 'storage':
             let source = comArgs[++i];
             var path = comArgs[++i];
             path = transformDataPath(path, 'storage');
-            return { result: ``, offset: i, path: path };
+            if (path == undefined) return { result: `storage ${source}`, offset: i, path: "" };
+            return { result: `storage ${source} ${path}`, offset: i, path: path };
         default:
-            return { result: "", offset: i, path: "" };
+            return { result: comArgs[i], offset: i, path: "" };
     }
 }
 function transformCommand(command) {
@@ -169,6 +391,7 @@ function transformCommand(command) {
 
     try {
         switch (cmdRootR) {
+
             case 'summon':
                 if (comArgs.length < 2) {
                     writeLine(ERROR_MESSAGES.NOT_ENOUGHT_ARGUMENTS);
@@ -256,6 +479,90 @@ function transformCommand(command) {
                     return `${tmp} ${block}`;
                 }
                 break;
+            case 'data':
+                let res = "";
+                var i = 0;
+                res = comArgs[i];
+                let type = comArgs[++i];
+                switch (type) {
+                    case 'get':
+                    case 'remove':
+                        res += ` ${type} ${dealWithDataCommandArgWithoutArgs(comArgs, ++i).result}`;
+                        return res;
+                    case 'modify':
+                        let tresult = dealWithDataCommandArgWithArgs(comArgs, ++i);
+                        let path = tresult.path;
+                        i = tresult.offset;
+                        let controlType = comArgs[++i];
+                        let dresult = null;
+                        let data = null;
+                        let fromType = "", ress = null;
+                        res += ` ${type} ${tresult.result}`;
+                        switch (controlType) {
+                            case 'set':
+                                fromType = comArgs[++i];
+                                if (fromType == 'value') {
+                                    data = comArgs[++i];
+                                    let ress = transformDataPathWithArgs(path, tresult.type, data);
+                                    res += ` ${ress.path} ${controlType} ${fromType} ${ress.data}`;
+                                    break;
+                                }
+                                if (fromType == 'string') {
+                                    writeLine(ERROR_MESSAGES.UNSUPPORTED);
+                                    return command;
+                                }
+                                dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
+                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
+                                res += ` ${ress.path} ${controlType} ${fromType} ${dresult.result}`;
+
+                                break;
+                            case 'insert':
+                                insertIdx = comArgs[++i];
+                                fromType = comArgs[++i];
+                                if (fromType == 'value') {
+                                    data = comArgs[++i];
+                                    let ress = transformDataPathWithArgs(path, tresult.type, [data]);
+                                    res += ` ${ress.path} ${controlType} ${insertIdx} ${fromType} ${ress.data}`;
+                                    break;
+                                }
+                                if (fromType == 'string') {
+                                    writeLine(ERROR_MESSAGES.UNSUPPORTED);
+                                    return command;
+                                }
+                                dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
+                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
+                                res += ` ${ress.path} ${controlType} ${insertIdx} ${fromType} ${dresult.result}`;
+                                break;
+                            default:
+                                transformDataPathWithArgs(path, [data]);
+                                fromType = comArgs[++i];
+                                if (fromType == 'value') {
+                                    data = comArgs[++i];
+                                    let ress = transformDataPathWithArgs(path, tresult.type, [data]);
+                                    res += ` ${ress.path} ${controlType} ${fromType} ${ress.data}`;
+                                    break;
+                                }
+                                if (fromType == 'string') {
+                                    writeLine(ERROR_MESSAGES.UNSUPPORTED);
+                                    return command;
+                                }
+                                dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
+                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
+                                res += ` ${ress.path} ${controlType} ${fromType} ${dresult.result}`;
+                                break;
+                        }
+
+                        return res;
+                    case 'merge':
+                        writeLine(ERROR_MESSAGES.UNSUPPORTED);
+                        return command;
+                    default:
+                        throw new SyntaxError(ERROR_MESSAGES.UNKNOWN_ARGUMENTS)
+                }
+                break;
             case 'execute':
                 var tmp = "", i = 0;
                 while (i < comArgs.length && comArgs[i] != 'run') {
@@ -265,7 +572,7 @@ function transformCommand(command) {
                         let testType = comArgs[i];
                         if (testType == 'data') {
                             i++;
-                            let transformResult = dealWithDataCommandArg(comArgs, i);
+                            let transformResult = dealWithDataCommandArgWithoutArgs(comArgs, i);
                             i = transformResult.offset;
                             let result = transformResult.result;
                             tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + result;
@@ -281,6 +588,11 @@ function transformCommand(command) {
                             let result = `${x} ${y} ${z} ${block}`;
                             tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + result;
                         }
+                    } else if (comArgs[i] == 'store') {
+                        let storeResultType = comArgs[++i]; // result or success
+                        let tresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i)
+                        tmp += (tmp == "" ? "" : " ") + "store " + storeResultType + " " + tresult.result;
+                        i = tresult.offset;
                     } else if (comArgs[i].startsWith("@")) {
                         let selector = transformSelector(comArgs[i]);
                         tmp += (tmp == "" ? "" : " ") + selector;
@@ -383,6 +695,7 @@ function transformSelector(selectorText) {
     return toSelectorText(selector);
 }
 function transformEntityItemTag(itemTag) {
+
     let id = itemTag.id;
     let count = getNbtContent(itemTag.Count);
     let tag = itemTag.tag;
@@ -427,7 +740,8 @@ function transformItemItemsTag(itemTag) {
 function transformItemBlockEntityItemTag(blockItemArrays) {
     let result = [];
     for (let i in blockItemArrays) {
-        result.push(transformItemItemsTag(blockItemArrays[i]));
+        if (blockItemArrays[i] == null) result.push(null)
+        else result.push(transformItemItemsTag(blockItemArrays[i]));
 
     }
     return result;
@@ -435,7 +749,8 @@ function transformItemBlockEntityItemTag(blockItemArrays) {
 function transformBlockItemTag(blockItemArrays) {
     let result = [];
     for (let i in blockItemArrays) {
-        result.push(transformEntityItemTag(blockItemArrays[i]));
+        if (blockItemArrays[i] == null) result.push(null)
+        else result.push(transformEntityItemTag(blockItemArrays[i]));
     }
     return result;
 }
@@ -695,7 +1010,7 @@ function transformItemTags(tag, itemId = undefined) {
                 components['enchantments'] = { levels: {} };
                 for (let i in tag[key]) {
                     let id = getNbtContent(tag[key][i]['id']);
-                    id = transformId(ENCHANTMENTS_TRANSFORMATION, id);
+                    id = "minecraft:" + deleteNameSpace(transformId(ENCHANTMENTS_TRANSFORMATION, id));
                     if (id == "" || id == "none") {
                         components['enchantment_glint_override'] = true;
                         continue;

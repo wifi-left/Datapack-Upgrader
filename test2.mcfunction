@@ -1,3 +1,3 @@
-give @p diamond{s:1,ss:2}
-give @p[nbt={Inventory:[{id:"minecraft:diamond",Count:1b,tag:{s:1}}]}] diamond_pickaxe{HideFlags:127}
-clear @s #acacia_logs{Enchantments:[{id:"",lvl:1s}]} 0
+# execute store result block 1 1 1 Items[0].tag.display.Name byte 1 if data entity @s {"Inventory":[{id:"minecraft:emerald",Count:1b,tag:{Enchantments:[{id:"minecraft:sharpness",lvl:1}]}}]}
+data modify block ~ ~ ~ Items[0].tag.Enchantments set from block ~ ~ ~ Items[1].tag.Enchantments
+data merge block ~ ~ ~ {Items:[{tag:{display:{Name:'"1"'}}}]}
