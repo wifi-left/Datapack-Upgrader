@@ -1,4 +1,5 @@
 const NBTools = require("./NBTool.js").NBTools;
+const { warpComponentValue } = require("./NBTool.js");
 function parseCommand(cmd) {
     if (cmd.startsWith("#")) return [cmd];
     if (typeof (cmd) != "string") throw SyntaxError("Not a String object!");
@@ -254,7 +255,10 @@ function toSelectorText(selectorObj, splitChar = '=') {
     let components = "";
     if (selectorObj.components != null) {
         for (let key in selectorObj.components) {
-            components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(selectorObj.components[key])}`;
+            let b = selectorObj.components[key];
+            if (typeof b === 'object')
+                components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(selectorObj.components[key])}`;
+            else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(selectorObj.components[key])}`;
         }
         components = `[${components}]`
     }

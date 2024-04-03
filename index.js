@@ -12,6 +12,7 @@ console.warn("### ")
 const { NBTools, getNbtContent, getNbtType, warpKey } = require("./NBTool.js");
 var OutputFile = null;
 var debugMode = false;
+var jsonMode = false;
 function writeLine(...lines) {
     for (let i = 0; i < lines.length; i++) {
         if (OutputFile != null) {
@@ -32,7 +33,10 @@ let i = 0;
 while (i < argvs.length) {
     let arg = argvs[i];
     if (arg == '-debug') {
-        debugMode = true;
+        debugMode = !debugMode;
+    }
+    if (arg == '-json') {
+        jsonMode = !jsonMode;
     }
     if (arg == '-c') {
         i++;
@@ -701,13 +705,14 @@ function transformSelector(selectorText) {
 function transformEntityItemTag(itemTag) {
 
     let id = itemTag.id;
+    let rawid = getNbtContent(id);
     let count = getNbtContent(itemTag.Count);
     let tag = itemTag.tag;
     let slot = itemTag.Slot;
     let components = null;
     let result = { id: id, count: count };
     if (tag != undefined) {
-        components = transformItemTags(tag);
+        components = transformItemTags(tag, rawid);
         result['components'] = {};
         for (var key in components) {
             result['components']["minecraft:" + (key)] = components[key];
@@ -721,6 +726,8 @@ function transformEntityItemTag(itemTag) {
 }
 function transformItemItemsTag(itemTag) {
     let id = itemTag.id;
+    let rawid = getNbtContent(id);
+
     let count = getNbtContent(itemTag.Count);
     let tag = itemTag.tag;
     let slot = itemTag.Slot;
@@ -728,7 +735,7 @@ function transformItemItemsTag(itemTag) {
     let result = { slot: 0, item: {} };
     let result1 = { id: id, count: count };
     if (tag != undefined) {
-        components = transformItemTags(tag);
+        components = transformItemTags(tag, rawid);
         result1['components'] = {};
         for (var key in components) {
             result1['components'][(`minecraft:${key}`)] = components[key];
@@ -994,10 +1001,9 @@ function transformItemTags(tag, itemId = undefined) {
                     }
                 }
                 if (hiddenflags & (1 << 7)) {
-                    if (components['trim'] == undefined) {
-                        components['trim'] = {};
+                    if (components['trim'] != undefined) {
+                        components['trim']['show_in_tooltip'] = false;
                     }
-                    components['trim']['show_in_tooltip'] = false;
                 }
                 break;
 
@@ -1053,7 +1059,7 @@ function transformItemTags(tag, itemId = undefined) {
                     components['map_color'] = (mapcolor);
                 }
                 break;
-            case 'CanDestory':
+            case 'CanDestroy':
                 components['can_break'] = { blocks: [] };
                 for (var i in tag[key]) {
                     components['can_break']['blocks'].push(tag[key][i]);
@@ -1103,11 +1109,15 @@ function transformItemTags(tag, itemId = undefined) {
                 if (components['charged_projectiles'] == undefined) components['charged_projectiles'] = [];
                 break;
             case 'ChargedProjectiles':
-                components['charged_projectiles'] = (tag[key]);
+                components['charged_projectiles'] = transformBlockItemTag(tag[key]);
                 break;
             case 'Items':
                 if (deleteNameSpace(itemId) == 'bundle')
                     components['bundle_contents'] = transformBlockItemTag(tag[key]);
+                else {
+                    if (components['custom_data'] == undefined) components['custom_data'] = {};
+                    components['custom_data'][key] = transformBlockItemTag(tag[key]);
+                }
                 break;
             case 'Decorations':
                 components['map_decorations'] = {};
@@ -1256,6 +1266,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'SkullOwner':
                 let t = tag[key];
                 components['profile'] = transformProfile(t);
+                break;
             case 'BlockEntityTag':
                 let note_block_sound = tag[key]['note_block_sound'];
                 let base_color = transformId(FLAGSCOLOR_TRANSFORMATION, tag[key]['Base']);
