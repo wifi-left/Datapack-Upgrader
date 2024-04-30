@@ -6,3 +6,8 @@
 # give @s minecraft:snowball{Enchantments:[{id:"unbreaking",lvl:1}],display:{Name:'"\\u00a74\\u00a7lFIREBALL"',Lore:['"\\u00a7bTEST LORE"']},HideFlags:63} 4
 
 particle minecraft:dust 0.059 0.973 0.439 1 ~ ~ ~ 0 0 0 1 1
+give @s diamond{display:{Name:'"\\u00a7a1"'}} 1
+execute as @a[team=wait.jobpvp] at @s run kill @e[type=item,distance=0..6,nbt=!{Item:{tag:{job_pvp:1}}}]
+scoreboard players reset @a[tag=!riding,scores={GCAR.long=-1..}] GCAR.long
+data modify entity @e[limit=1,type=item,tag=sur.loot.new] Item.tag.Items set from entity @s Inventory
+

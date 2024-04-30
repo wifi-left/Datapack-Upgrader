@@ -53,7 +53,7 @@ function listFile(dir) {
         var fullpath = pathLib.join(dir, item);
         var stats = fs.statSync(fullpath);
         if (stats.isDirectory()) {
-            listFile(fullpath);
+            list = list.concat(listFile(fullpath));
         } else {
             list.push(fullpath);
         }
@@ -61,13 +61,13 @@ function listFile(dir) {
     return list;
 }
 function transformFile(input, output, overwrite = false) {
-    if(pathLib.extname(input) != '.mcfunction') return;
+    if (pathLib.extname(input) != '.mcfunction') return;
     try {
         if (fs.existsSync(output) == true && !overwrite) {
             warningMessages += "\n" + ("File " + output + " already exists.")
             return;
         };
-        if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output));
+        if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
         content = fs.readFileSync(input, { encoding: "utf8" });
         OutputFile = fs.createWriteStream(output);
         OutputFilePath = output;
@@ -86,13 +86,15 @@ function transformFile(input, output, overwrite = false) {
 
 }
 function transformFolder(dir, output, overwrite = false) {
+    dir = dir.replaceAll("\\", "/");
+    output = output.replaceAll("\\", "/");
     writeDebugLine(`## Reading the folder ${dir}...`);
     OutputFile = null;
     OutputFilePath = "";
     var files = listFile(dir);
     writeLine(`\nTotal files: ${files.length}`);
     console.log("\n")
-    if (!output.endsWith("/") && !output.endsWith("\\")) output = output + "/";
+    if (!output.endsWith("/")) output = output + "/";
     for (let i = 0; i < files.length; i++) {
 
         readline.cursorTo(process.stdout, 0, 7)
@@ -112,10 +114,9 @@ function transformFolder(dir, output, overwrite = false) {
             empty += '░';
         }
         // 获取相对路径
-        let relativeFilePath = files[i];
+        let relativeFilePath = files[i].replaceAll("\\", "/");;
         if (relativeFilePath.startsWith(dir)) relativeFilePath = relativeFilePath.substring(dir.length);
-        if (relativeFilePath.startsWith("\\")) relativeFilePath = relativeFilePath.substring(1);
-        else if (relativeFilePath.startsWith("/")) relativeFilePath = relativeFilePath.substring(1);
+        if (relativeFilePath.startsWith("/")) relativeFilePath = relativeFilePath.substring(1);
         transformFile(files[i], output + relativeFilePath, overwrite);
 
         // 拼接最终文本
@@ -178,7 +179,7 @@ Supported commands:
                 writeDebugLine("## DEBUG: Save file to '" + path + "'")
                 let dir = pathLib.dirname(path);
                 if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir);
+                    fs.mkdirSync(dir, { recursive: true });
                 }
                 if (fs.existsSync(path)) {
                     if (!force) {
@@ -403,6 +404,7 @@ function transformDataPathWithArgs(path, type, data) {
         return result;
     } catch (e) {
         writeDebugLine(e);
+        writeLine(`## WARNING: ${e.message}`)
         for (let i in DATAPATH_TRANSFORMATION) {
             let regexp = DATAPATH_TRANSFORMATION[i].regexp;
             let replacement = DATAPATH_TRANSFORMATION[i].replace;
@@ -574,8 +576,8 @@ function transformCommand(command) {
                     let blockT = parseBlockArg(block);
                     let extra = "";
                     let blockState = "";
-                    for(let key in blockT.components){
-                        blockState = blockState+(blockState==""?"":",") + warpKey(key)+":"+JSON.stringify(blockT.components[key]);
+                    for (let key in blockT.components) {
+                        blockState = blockState + (blockState == "" ? "" : ",") + warpKey(key) + ":" + JSON.stringify(blockT.components[key]);
                     }
                     for (let j = 3; j < comArgs.length; j++) extra += " " + comArgs[j];
                     return `${comArgs[0]} ${comArgs[1]}{block_state:{Name:${warpKey(blockT.id)},Properties:{${blockState}}}}${extra}`;
@@ -769,6 +771,8 @@ function transformCommand(command) {
                             let block = transformBlock(comArgs[++i]);
                             let result = `${x} ${y} ${z} ${block}`;
                             tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType} ` + result;
+                        } else {
+                            tmp += (tmp == "" ? "" : " ") + `${ifOrUnless} ${testType}`;
                         }
                     } else if (comArgs[i] == 'store') {
                         let storeResultType = comArgs[++i]; // result or success
@@ -870,8 +874,13 @@ function transformCommand(command) {
 
 function transformSelector(selectorText) {
     let selector = parseSelectorArg(selectorText);
-    if (selector.components != undefined) if (selector.components.nbt != undefined) selector.components.nbt = transformEntityTags(NBTools.ParseNBT(selector.components.nbt), "player");
-
+    let not = false;
+    if (selector.components != undefined) if (selector.components.nbt != undefined) {
+        let NBTs = selector.components.nbt;
+        if (NBTs.startsWith("!")) { not = true; NBTs = NBTs.substring(1); }
+        else not = false;
+        selector.components.nbt = (not ? "!" : "") + NBTools.ToString(transformEntityTags(NBTools.ParseNBT(NBTs), "player"));
+    }
     // console.log(selector)
     // TODO: 转换 selector 中 nbt
     return toSelectorText(selector);
@@ -1286,7 +1295,7 @@ function transformItemTags(tag, itemId = undefined) {
                 components['charged_projectiles'] = transformBlockItemTag(tag[key]);
                 break;
             case 'Items':
-                if (deleteNameSpace(itemId) == 'bundle')
+                if (deleteNameSpace(itemId) == 'bundle' || itemId == "" || itemId == undefined)
                     components['bundle_contents'] = transformBlockItemTag(tag[key]);
                 else {
                     if (components['custom_data'] == undefined) components['custom_data'] = {};

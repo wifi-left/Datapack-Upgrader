@@ -20,7 +20,7 @@ function getNbtContent(nbttext) {
     if (nbttext.startsWith("\"")) {
         return JSON.parse(nbttext);
     } else if (nbttext.startsWith("'")) {
-        return nbttext.substring(1, nbttext.length - 1);
+        return JSON.parse(nbttext.substring(1, nbttext.length - 1));
     }
     switch (nbttext[nbttext.length - 1]) {
         case 's':
@@ -119,7 +119,7 @@ const NBTools = {
                 }
                 return `[${result}]`;
             case 'string':
-                return JSON.stringify(getNbtContent(NbtObject));
+                return NbtObject;
             case 'short':
             case 'int':
             case 'long':

@@ -20,20 +20,34 @@ function splitText(text, separator) {
     var tempStr = '';
     var cmds = [];
     var fanXieGang = 0;
+    let quoteMode = false;
+
     for (var i = 0; i < text.length; i++) {
-        if (text[i] == separator && stack.length <= 0) {
-            cmds.push(tempStr);
-            tempStr = '';
-        } else if (text[i] == "\"" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "\"") stack.pop()
-            else stack.push("\"");
-        } else if (text[i] == "'" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "'") stack.pop()
-            else stack.push("'");
-        } else if (stack[stack.length - 1] != '"' && stack[stack.length - 1] != "'") {
-            if (text[i] == '[') {
+        if (quoteMode) {
+            if (text[i] == "\"" && !fanXieGang && stack[stack.length - 1] == "\"") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else if (text[i] == "'" && !fanXieGang && stack[stack.length - 1] == "'") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else {
+                tempStr += text[i];
+            }
+        } else {
+            if (text[i] == separator && stack.length <= 0) {
+                cmds.push(tempStr);
+                tempStr = '';
+            } else if (text[i] == "\"" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("\"");
+            } else if (text[i] == "'" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("'");
+            } else if (text[i] == '[') {
                 tempStr += text[i];
                 // if (stack[stack.length-1] == '"') stack.pop()
                 stack.push('[');
@@ -52,8 +66,7 @@ function splitText(text, separator) {
             } else {
                 tempStr += text[i];
             }
-        } else {
-            tempStr += text[i];
+
         }
         if (fanXieGang) fanXieGang = 0;
         else if (text[i] == '\\') {
@@ -61,7 +74,7 @@ function splitText(text, separator) {
         }
     }
     if (stack.length > 0) {
-        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
+        throw SyntaxError("Missing or surplusing '" + stack[0] + "' in " + (text.length - 1));
     }
     if (fanXieGang > 0) {
         throw SyntaxError("Escape error.");
@@ -75,27 +88,44 @@ function parseValues(text, separator, equalsChar) {
     var cmds = {};
     let keyName = '';
     var fanXieGang = 0;
+    let quoteMode = false;
+
     for (var i = 0; i < text.length; i++) {
-        if (text[i] == equalsChar && stack.length <= 0) {
-            keyName = tempStr;
-            if (keyName == '') {
-                throw SyntaxError("Empty keyName.");
+        if (quoteMode) {
+            if (text[i] == "\"" && !fanXieGang && stack[stack.length - 1] == "\"") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else if (text[i] == "'" && !fanXieGang && stack[stack.length - 1] == "'") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else {
+                tempStr += text[i];
             }
-            tempStr = '';
-        } else if (text[i] == separator && stack.length <= 0) {
-            cmds[keyName] = tempStr;
-            tempStr = '';
-            keyName = null;
-        } else if (text[i] == "\"" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "\"") stack.pop()
-            else stack.push("\"");
-        } else if (text[i] == "'" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "'") stack.pop()
-            else stack.push("'");
-        } else if (stack[stack.length - 1] != '"' && stack[stack.length - 1] != "'") {
-            if (text[i] == '[') {
+        } else {
+            if (text[i] == equalsChar && fanXieGang == 0 && stack.length <= 0) {
+                keyName = tempStr;
+                if (keyName == '') {
+                    throw SyntaxError("Empty keyName.");
+                }
+                tempStr = '';
+            } else if (text[i] == separator && fanXieGang == 0 && stack.length <= 0) {
+                if (keyName != '') {
+                    cmds[keyName] = tempStr;
+                }else{
+                    throw SyntaxError("Empty keyName.");
+                }
+                tempStr = '';
+            } else if (text[i] == "\"" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("\"");
+            } else if (text[i] == "'" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("'");
+            } else if (text[i] == '[') {
                 tempStr += text[i];
                 // if (stack[stack.length-1] == '"') stack.pop()
                 stack.push('[');
@@ -114,8 +144,7 @@ function parseValues(text, separator, equalsChar) {
             } else {
                 tempStr += text[i];
             }
-        } else {
-            tempStr += text[i];
+
         }
         if (fanXieGang) fanXieGang = 0;
         else if (text[i] == '\\') {
@@ -140,17 +169,31 @@ function splitTagAndComponents(text) {
     var tags = "";
     var components = "";
     var fanXieGang = 0;
+    let quoteMode = false;
+
     for (var i = 0; i < text.length; i++) {
-        if (text[i] == "\"" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "\"") stack.pop()
-            else stack.push("\"");
-        } else if (text[i] == "'" && fanXieGang == 0) {
-            tempStr += text[i];
-            if (stack[stack.length - 1] == "'") stack.pop()
-            else stack.push("'");
-        } else if (stack[stack.length - 1] != '"' && stack[stack.length - 1] != "'") {
-            if (text[i] == '[') {
+        if (quoteMode) {
+            if (text[i] == "\"" && !fanXieGang && stack[stack.length - 1] == "\"") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else if (text[i] == "'" && !fanXieGang && stack[stack.length - 1] == "'") {
+                tempStr += text[i];
+                stack.pop();
+                quoteMode = false;
+            } else {
+                tempStr += text[i];
+            }
+        } else {
+            if (text[i] == "\"" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("\"");
+            } else if (text[i] == "'" && fanXieGang == 0) {
+                tempStr += text[i];
+                quoteMode = true;
+                stack.push("'");
+            } else if (text[i] == '[') {
                 tempStr += text[i];
                 // if (stack[stack.length-1] == '"') stack.pop()
                 stack.push('[');
@@ -173,14 +216,14 @@ function splitTagAndComponents(text) {
             } else {
                 tempStr += text[i];
             }
-        } else {
-            tempStr += text[i];
+
         }
         if (fanXieGang) fanXieGang = 0;
         else if (text[i] == '\\') {
             fanXieGang = 1;
         }
     }
+
     if (stack.length > 0) {
         throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
     }

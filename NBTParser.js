@@ -156,8 +156,12 @@ function NBTParser(str) {
     } else if (str[i] === '[') {
         return parseArray();
     } else {
-        if(str == "") return str;
-        return JSON.parse(str);
+        if (str == "") return str;
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            return str;
+        }
     }
 }
 module.exports = { NBTParser }
