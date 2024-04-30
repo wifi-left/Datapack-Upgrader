@@ -156,6 +156,7 @@ function NBTParser(str) {
     } else if (str[i] === '[') {
         return parseArray();
     } else {
+        if(str == "") return str;
         return JSON.parse(str);
     }
 }

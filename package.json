@@ -4,9 +4,10 @@
   "description": "Upgrade your datapack from 1.20.4 to 1.20.5",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js -I test.mcfunction",
-    "test2": "node index.js -debug -O \"debug/test_result.mcfunction\" -y -I test2.mcfunction",
-    "run": "node index.js"
+    "test": "node index.js -i sample debug -y",
+    "test2": "node index.js -debug -o \"debug/test_result.mcfunction\" -y -i \"sample/test2.mcfunction\"",
+    "run": "node index.js",
+    "help": "node index.js -h"
   },
   "author": "wifi_left",
   "license": "ISC",

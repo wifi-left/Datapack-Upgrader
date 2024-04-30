@@ -4,21 +4,38 @@ const { ERROR_MESSAGES } = require("./ErrorMessages.js");
 const fs = require("fs");
 const package = require("./package.json")
 const pathLib = require('path')
-
-console.warn("###")
-console.warn("### Datapack Upgrader v" + package.version + " by " + package.author)
-console.warn("### If you encounter a problem, make an issue on " + package.homepage)
-console.warn("### ")
+const readline = require('readline');
+console.warn("\x1B[0m###")
+console.warn("\x1B[0m### \x1B[32m\x1B[1mDatapack Upgrader \x1B[31mv" + package.version + "\x1B[0m\x1B[32m by " + package.author)
+console.warn("\x1B[0m### \x1B[1mIf you encounter a problem, make an issue on \x1B[34m" + package.homepage)
+console.warn("\x1B[0m### Use '-h' to get more information about arguments.")
+console.warn("\x1B[0m### \x1B[0m")
 const { NBTools, getNbtContent, getNbtType, warpKey } = require("./NBTool.js");
 var OutputFile = null;
+var OutputFilePath = "";
 var debugMode = false;
 var jsonMode = false;
+var warningMessages = "";
 function writeLine(...lines) {
     for (let i = 0; i < lines.length; i++) {
         if (OutputFile != null) {
+            // ## ERROR: 
+
+            if (lines[i].startsWith("## SyntaxError: ")) {
+                warningMessages += "\n" + ("\x1B[31m" + lines[i] + " \x1B[34min file \x1B[36m\x1B[4m" + OutputFilePath + "\x1B[0m");
+            } else if (lines[i].startsWith("## ERROR: ")) {
+                warningMessages += "\n" + ("\x1B[31m" + lines[i] + " \x1B[34min file \x1B[36m\x1B[4m" + OutputFilePath + "\x1B[0m");
+            } else if (lines[i].startsWith("## WARNING")) {
+                warningMessages += "\n" + ("\x1B[33m" + lines[i] + " \x1B[34min file \x1B[36m\x1B[4m" + OutputFilePath + "\x1B[0m");
+            }
             OutputFile.write(lines[i] + "\r\n");
         } else {
-            console.log(lines[i])
+            if (lines[i].startsWith("## ERROR:")) console.log("\x1B[31m")
+            else if (lines[i].startsWith("## Error")) console.log("\x1B[31m")
+            else if (lines[i].startsWith("## WARNING")) {
+                console.log("\x1B[33m");
+            }
+            console.log(lines[i] + "\x1B[0m");
         }
     }
 }
@@ -28,10 +45,111 @@ function writeDebugLine(...lines) {
         console.log(lines[i])
     }
 }
+
+function listFile(dir) {
+    let arr = fs.readdirSync(dir);
+    let list = [];
+    arr.forEach(function (item) {
+        var fullpath = pathLib.join(dir, item);
+        var stats = fs.statSync(fullpath);
+        if (stats.isDirectory()) {
+            listFile(fullpath);
+        } else {
+            list.push(fullpath);
+        }
+    });
+    return list;
+}
+function transformFile(input, output, overwrite = false) {
+    if(pathLib.extname(input) != '.mcfunction') return;
+    try {
+        if (fs.existsSync(output) == true && !overwrite) {
+            warningMessages += "\n" + ("File " + output + " already exists.")
+            return;
+        };
+        if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output));
+        content = fs.readFileSync(input, { encoding: "utf8" });
+        OutputFile = fs.createWriteStream(output);
+        OutputFilePath = output;
+        writeLine("##")
+        writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
+        writeLine("## If you encounter a problem, make an issue on " + package.homepage)
+        writeLine("## ")
+        let arrs = content.replace("\r", "").split("\n");
+        for (let j = 0; j < arrs.length; j++)
+            writeLine(transformCommand(arrs[j].trim()));
+        return;
+    } catch (e) {
+        writeDebugLine(e);
+        console.error(`Error while reading file: ${e.message}`);
+    }
+
+}
+function transformFolder(dir, output, overwrite = false) {
+    writeDebugLine(`## Reading the folder ${dir}...`);
+    OutputFile = null;
+    OutputFilePath = "";
+    var files = listFile(dir);
+    writeLine(`\nTotal files: ${files.length}`);
+    console.log("\n")
+    if (!output.endsWith("/") && !output.endsWith("\\")) output = output + "/";
+    for (let i = 0; i < files.length; i++) {
+
+        readline.cursorTo(process.stdout, 0, 7)
+        readline.clearLine(process.stdout, 0); //移动光标到行首
+
+        let percent = (i / files.length).toFixed(4);
+        var cell_num = Math.floor(percent * 25); // 计算需要多少个 █ 符号来拼凑图案
+
+        // 拼接黑色条
+        var cell = '';
+        for (var j = 0; j < cell_num; j++) {
+            cell += '█';
+        }
+        // 拼接灰色条
+        var empty = '';
+        for (var j = 0; j < 25 - cell_num; j++) {
+            empty += '░';
+        }
+        // 获取相对路径
+        let relativeFilePath = files[i];
+        if (relativeFilePath.startsWith(dir)) relativeFilePath = relativeFilePath.substring(dir.length);
+        if (relativeFilePath.startsWith("\\")) relativeFilePath = relativeFilePath.substring(1);
+        else if (relativeFilePath.startsWith("/")) relativeFilePath = relativeFilePath.substring(1);
+        transformFile(files[i], output + relativeFilePath, overwrite);
+
+        // 拼接最终文本
+        let cmdText = 'Transforming: ' + (100 * percent).toFixed(2) + '% ' + cell + empty + ' ' + i + '/' + files.length + `  Transforming: ${relativeFilePath}\n`;
+
+        process.stdout.write(cmdText, 'utf-8');
+
+    }
+    readline.cursorTo(process.stdout, 0, 7)
+    readline.clearLine(process.stdout, 0); //移动光标到行首
+    process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
+    console.log("\n" + warningMessages);
+}
+
 let argvs = process.argv;
 let i = 0;
 while (i < argvs.length) {
     let arg = argvs[i];
+    if (arg == '-h') {
+        console.log(`
+Command Arguments:
+[Commands 1] [Commands2] ...
+
+Supported commands:
+-h                                  Show help texts(This).
+-i <input(File)>                    Transform a File.
+-i <input(Folder)> <Output Folder>  Transform a Folder.
+    [-y]                            Overwrite the existed file.
+-o <output(File)>                   Set the output File.
+    [-y]                            Overwrite the existed file.
+-debug                              Show debug messages
+-c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`);
+        return;
+    }
     if (arg == '-debug') {
         debugMode = !debugMode;
     }
@@ -45,8 +163,7 @@ while (i < argvs.length) {
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j]));
         }
-    } else if (arg == '-O') {
-
+    } else if (arg == '-o') {
         i++;
         if (i < argvs.length) {
             let path = argvs[i];
@@ -59,7 +176,7 @@ while (i < argvs.length) {
             }
             try {
                 writeDebugLine("## DEBUG: Save file to '" + path + "'")
-                let dir = pathLib.dirname(path)
+                let dir = pathLib.dirname(path);
                 if (!fs.existsSync(dir)) {
                     fs.mkdirSync(dir);
                 }
@@ -75,20 +192,42 @@ while (i < argvs.length) {
                     OutputFile.end();
                 }
                 OutputFile = fs.createWriteStream(path, { encoding: "utf8" });
+                OutputFilePath = path;
             } catch (error) {
                 console.error("## Error while writing file: " + error.message)
                 writeDebugLine(error);
                 continue;
             }
         }
-    } else if (arg == '-I') {
+    } else if (arg == '-i') {
         i++;
         if (i < argvs.length) {
             let path = argvs[i];
             let content = "";
+
             try {
-                console.info("# Reading file '" + path + "'")
-                content = fs.readFileSync(path, { encoding: "utf8" });
+                let stats = fs.statSync(path);
+                if (stats.isDirectory()) {
+                    i++;
+                    if (i < argvs.length) {
+                        let output = argvs[i];
+                        i++;
+                        let overWriteFiles = false;
+                        if (i < argvs.length) {
+                            if (argvs[i] == '-y') {
+                                overWriteFiles = true;
+                            }
+                        }
+                        transformFolder(path, output, overWriteFiles);
+                        continue;
+                    } else {
+                        console.error("## Missing output file.")
+                        return;
+                    }
+                } else {
+                    console.info("# Reading file '" + path + "'")
+                    content = fs.readFileSync(path, { encoding: "utf8" });
+                }
             } catch (error) {
                 console.error("## Error while reading file: " + error.message)
                 writeDebugLine(error);
@@ -421,7 +560,42 @@ function transformCommand(command) {
                     return command;
                 }
                 if (comArgs[1] == 'entity_effect') {
-                    writeLine("## WARNING: Particle 'entity_effect' takes color argument when spawned from command '/particle entity_effect <r> <g> <b> <a>'.")
+                    writeLine("## WARNING: Particle 'entity_effect' takes color argument when spawned from command '/particle entity_effect{color:[1.0, 0.0, 0.0], scale:2.0}'.")
+                } else if (deleteNameSpace(comArgs[1]) == 'dust') {
+                    let r = comArgs[2];
+                    let g = comArgs[3];
+                    let b = comArgs[4];
+                    let s = comArgs[5];
+                    let extra = "";
+                    for (let j = 6; j < comArgs.length; j++) extra += " " + comArgs[j];
+                    return `${comArgs[0]} ${comArgs[1]}{color:[${r}, ${g}, ${b}],scale:${s}}${extra}`;
+                } else if (['block', '​block_marker', '​falling_dust', 'dust_pillar'].includes(deleteNameSpace(comArgs[1]))) {
+                    let block = comArgs[2];
+                    let blockT = parseBlockArg(block);
+                    let extra = "";
+                    let blockState = "";
+                    for(let key in blockT.components){
+                        blockState = blockState+(blockState==""?"":",") + warpKey(key)+":"+JSON.stringify(blockT.components[key]);
+                    }
+                    for (let j = 3; j < comArgs.length; j++) extra += " " + comArgs[j];
+                    return `${comArgs[0]} ${comArgs[1]}{block_state:{Name:${warpKey(blockT.id)},Properties:{${blockState}}}}${extra}`;
+                } else if (deleteNameSpace(comArgs[1]) == 'item') {
+                    let item = comArgs[2];
+                    let itemT = parseBlockArg(block);
+                    let extra = "";
+                    for (let j = 3; j < comArgs.length; j++) extra += " " + comArgs[j];
+                    return `${comArgs[0]} ${comArgs[1]}{item:${warpKey(itemT.id)}}${extra}`;
+                } else if (deleteNameSpace(comArgs[1]) == 'dust_color_transition') {
+                    let fr = comArgs[2];
+                    let fg = comArgs[3];
+                    let fb = comArgs[4];
+                    let tr = comArgs[5];
+                    let tg = comArgs[6];
+                    let tb = comArgs[7];
+                    let s = comArgs[8];
+                    let extra = "";
+                    for (let j = 9; j < comArgs.length; j++) extra += " " + comArgs[j];
+                    return `${comArgs[0]} ${comArgs[1]}{from_color:[${fr},${fg},${fb}],scale:${s},to_color:[${tr},${tg},${tb}]}${extra}`;
                 }
             case 'clear':
                 if (comArgs.length < 2) {
@@ -1149,61 +1323,61 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'pages':
                 if (deleteNameSpace(itemId) == 'writable_book') {
-                    if (components['writable_book_contents'] == undefined) components['writable_book_contents'] = {}
+                    if (components['writable_book_content'] == undefined) components['writable_book_content'] = {}
                     let pages = tag[key];
-                    components['writable_book_contents']['pages'] = [];
+                    components['writable_book_content']['pages'] = [];
                     for (let i in pages) {
-                        components['writable_book_contents']['pages'][i] = { text: pages[i] };
+                        components['writable_book_content']['pages'][i] = { raw: pages[i] };
                     }
                 } else {
-                    if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                    components['written_book_contents'] = {};
+                    if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                    components['written_book_content'] = {};
                     let pages = tag[key];
-                    components['written_book_contents']['pages'] = [];
+                    components['written_book_content']['pages'] = [];
                     for (let i in pages) {
-                        components['written_book_contents']['pages'][i] = { text: pages[i] };
+                        components['written_book_content']['pages'][i] = { raw: pages[i] };
                     }
                 }
 
                 break;
             case 'filtered_pages':
                 if (deleteNameSpace(itemId) == 'writable_book') {
-                    if (components['writable_book_contents'] == undefined) components['writable_book_contents'] = {}
-                    if (components['writable_book_contents']['pages'] == undefined) components['writable_book_contents']['pages'] = [];
+                    if (components['writable_book_content'] == undefined) components['writable_book_content'] = {}
+                    if (components['writable_book_content']['pages'] == undefined) components['writable_book_content']['pages'] = [];
                     for (let i in pages) {
-                        if (components['writable_book_contents']['pages'][i] == undefined)
-                            components['writable_book_contents']['pages'][i] = { filtered: pages[i] };
-                        else components['writable_book_contents']['pages'][i].filtered = pages[i];
+                        if (components['writable_book_content']['pages'][i] == undefined)
+                            components['writable_book_content']['pages'][i] = { filtered: pages[i] };
+                        else components['writable_book_content']['pages'][i].filtered = pages[i];
                     }
                 } else {
-                    if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                    if (components['written_book_contents']['pages'] == undefined) components['written_book_contents']['pages'] = [];
+                    if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                    if (components['written_book_content']['pages'] == undefined) components['written_book_content']['pages'] = [];
                     for (let i in pages) {
-                        if (components['written_book_contents']['pages'][i] == undefined)
-                            components['written_book_contents']['pages'][i] = { filtered: pages[i] };
-                        else components['written_book_contents']['pages'][i].filtered = pages[i];
+                        if (components['written_book_content']['pages'][i] == undefined)
+                            components['written_book_content']['pages'][i] = { filtered: pages[i] };
+                        else components['written_book_content']['pages'][i].filtered = pages[i];
                     }
                 }
                 break;
             case 'author':
-                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                components['written_book_contents']['author'] = tag[key];
+                if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                components['written_book_content']['author'] = tag[key];
                 break;
             case 'generation':
-                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                components['written_book_contents']['generation'] = tag[key];
+                if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                components['written_book_content']['generation'] = tag[key];
                 break;
             case 'resolved':
-                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                components['written_book_contents']['resolved'] = tag[key];
+                if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                components['written_book_content']['resolved'] = tag[key];
                 break;
             case 'title':
-                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                components['written_book_contents']['title'] = tag[key];
+                if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                components['written_book_content']['title'] = tag[key];
                 break;
             case 'filtered_title':
-                if (components['written_book_contents'] == undefined) components['written_book_contents'] = {}
-                components['written_book_contents']['title'] = { text: components['written_book_contents']['title'], filtered: tag[key] };
+                if (components['written_book_content'] == undefined) components['written_book_content'] = {}
+                components['written_book_content']['title'] = { raw: components['written_book_content']['title'], filtered: tag[key] };
                 break;
             case 'Trim':
                 components['trim'] = tag[key];
