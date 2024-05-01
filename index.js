@@ -1181,15 +1181,15 @@ function transformItemTags(tag, itemId = undefined) {
                 }
                 break;
             case 'CanDestroy':
-                components['can_break'] = { blocks: [] };
+                components['can_break'] = { predicates:[{blocks: []}] };
                 for (var i in tag[key]) {
-                    components['can_break']['blocks'].push(tag[key][i]);
+                    components['can_break']['predicates'][0]['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'CanPlaceOn':
-                components['can_place_on'] = { blocks: [] };
+                components['can_place_on'] = { predicates:[{blocks: []}] };
                 for (var i in tag[key]) {
-                    components['can_place_on']['blocks'].push(tag[key][i]);
+                    components['can_place_on']['predicates'][0]['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'AttributeModifiers':
