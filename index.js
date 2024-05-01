@@ -128,7 +128,7 @@ function transformFolder(dir, output, overwrite = false) {
     readline.cursorTo(process.stdout, 0, 7)
     readline.clearLine(process.stdout, 0); //移动光标到行首
     process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
-    console.log("\n" + warningMessages);
+    console.log("\n" + warningMessages+`\nTotal: ${warningMessages.split("\n").length} Warnings/Errors`);
 }
 
 let argvs = process.argv;
