@@ -82,10 +82,13 @@ function splitText(text, separator) {
     cmds.push(tempStr);
     return cmds;
 }
-function parseValues(text, separator, equalsChar) {
+function parseValues(text, separator, equalsChar, array = false) {
     var stack = [];
     var tempStr = '';
     var cmds = {};
+    if (array) {
+        cmds = [];
+    }
     let keyName = '';
     var fanXieGang = 0;
     let quoteMode = false;
@@ -112,8 +115,10 @@ function parseValues(text, separator, equalsChar) {
                 tempStr = '';
             } else if (text[i] == separator && fanXieGang == 0 && stack.length <= 0) {
                 if (keyName != '') {
-                    cmds[keyName] = tempStr;
-                }else{
+                    if (!array)
+                        cmds[keyName] = tempStr;
+                    else cmds.push({ key: keyName, value: tempStr });
+                } else {
                     throw SyntaxError("Empty keyName.");
                 }
                 tempStr = '';
@@ -158,7 +163,9 @@ function parseValues(text, separator, equalsChar) {
         throw SyntaxError("Escape error.");
     }
     if (keyName != '') {
-        cmds[keyName] = tempStr;
+        if (!array)
+            cmds[keyName] = tempStr;
+        else cmds.push({ key: keyName, value: tempStr });
     }
     return cmds;
 }
@@ -239,7 +246,7 @@ function parseSelectorArg(selector) {
     let idy = selector.lastIndexOf("]");
     let target = selector.substring(0, idx);
     let tag = selector.substring(idx + 1, idy);
-    let tags = parseValues(tag, ",", "=");
+    let tags = parseValues(tag, ",", "=", true);
 
     return { player: target, components: tags }
 }
@@ -297,12 +304,23 @@ function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
     let components = "";
     if (selectorObj.components != null) {
-        for (let key in selectorObj.components) {
-            let b = selectorObj.components[key];
-            if (typeof b === 'object')
-                components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(selectorObj.components[key])}`;
-            else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(selectorObj.components[key])}`;
+        if(Array.isArray(selectorObj.components)){
+            for (let i in selectorObj.components) {
+                let key = selectorObj.components[i].key;
+                let b = selectorObj.components[i].value;
+                if (typeof b === 'object')
+                    components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(b)}`;
+                else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(b)}`;
+            }
+        }else{
+            for (let key in selectorObj.components) {
+                let b = selectorObj.components[key];
+                if (typeof b === 'object')
+                    components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(selectorObj.components[key])}`;
+                else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(selectorObj.components[key])}`;
+            }
         }
+        
         components = `[${components}]`
     }
 

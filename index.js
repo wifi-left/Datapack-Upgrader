@@ -911,15 +911,17 @@ function transformCommand(command) {
     }
     return command;
 }
-
 function transformSelector(selectorText) {
     let selector = parseSelectorArg(selectorText);
     let not = false;
-    if (selector.components != undefined) if (selector.components.nbt != undefined) {
-        let NBTs = selector.components.nbt;
-        if (NBTs.startsWith("!")) { not = true; NBTs = NBTs.substring(1); }
-        else not = false;
-        selector.components.nbt = (not ? "!" : "") + NBTools.ToString(transformEntityTags(NBTools.ParseNBT(NBTs), "player"));
+    if (selector.components != undefined) for (let i in selector.components) {
+        let obj = selector.components[i];
+        if (obj.key == 'nbt') {
+            let NBTs = obj.value;
+            if (NBTs.startsWith("!")) { not = true; NBTs = NBTs.substring(1); }
+            else not = false;
+            obj.value = (not ? "!" : "") + NBTools.ToString(transformEntityTags(NBTools.ParseNBT(NBTs), "player"));
+        }
     }
     // console.log(selector)
     // TODO: 转换 selector 中 nbt
