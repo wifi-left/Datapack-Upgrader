@@ -843,7 +843,11 @@ function transformCommand(command) {
                 } else {
                     let selector = transformSelector(comArgs[1]);
                     let item = transformItem(comArgs[2]);
-                    return `${cmdRoot} ${selector} ${item}`;
+                    let extra = "";
+                    for (let i = 3; i < comArgs.length; i++) {
+                        extra += " " + comArgs[i];
+                    }
+                    return `${cmdRoot} ${selector} ${item}${extra}`;
                 }
             case 'item':
                 if (comArgs.length <= 2) {
@@ -1225,14 +1229,32 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'CanDestroy':
                 components['can_break'] = { predicates: [{ blocks: [] }] };
+                var k = 0;
                 for (var i in tag[key]) {
-                    components['can_break']['predicates'][0]['blocks'].push(tag[key][i]);
+                    if (getNbtContent(tag[key][i]).startsWith("#")) {
+                        if (components['can_break']['predicates'][k]['blocks'].length != 0)
+                            k++;
+                        components['can_break']['predicates'][k] = { "blocks": tag[key][i] };
+                        k++;
+                        if (i < tag[key].length - 1)
+                            components['can_break']['predicates'][k] = { blocks: [] }
+                    } else
+                        components['can_break']['predicates'][k]['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'CanPlaceOn':
                 components['can_place_on'] = { predicates: [{ blocks: [] }] };
+                var k = 0;
                 for (var i in tag[key]) {
-                    components['can_place_on']['predicates'][0]['blocks'].push(tag[key][i]);
+                    if (getNbtContent(tag[key][i]).startsWith("#")) {
+                        if (components['can_place_on']['predicates'][k]['blocks'].length != 0)
+                            k++;
+                        components['can_place_on']['predicates'][k] = { "blocks": tag[key][i] };
+                        k++;
+                        if (i < tag[key].length - 1)
+                            components['can_place_on']['predicates'][k] = { blocks: [] }
+                    } else
+                        components['can_place_on']['predicates'][k]['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'AttributeModifiers':
