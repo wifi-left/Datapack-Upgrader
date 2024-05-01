@@ -13,13 +13,27 @@
  - [x] `/setblock`
  - [x] `/fill`
  - [x] `/execute if block`
- - [ ] `/execute if data`
- - [ ] `/data`
+ - [x] `/execute if data`
+ - [x] `/data`
  - [x] 选择器 (以 `@` 开头，比如 `@a[nbt={...}]`)
  - [ ] Loot Table
  - [ ] Item modifier
 
 ## 开始使用
+```bash
+Command Arguments:
+[Commands 1] [Commands2] ...
+
+Supported commands:
+-h                                  Show help texts(This).
+-i <input(File)>                    Transform a File.
+-i <input(Folder)> <Output Folder>  Transform a Folder.
+    [-y]                            Overwrite the existed file.
+-o <output(File)>                   Set the output File.
+    [-y]                            Overwrite the existed file.
+-debug                              Show debug messages
+-c <commands>                       Transform a command. Use '\n' to transform multiline commands.
+```
 ### 下载源码
 你可以直接从 GitHub 下载源码后启动
 
