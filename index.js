@@ -862,7 +862,7 @@ function transformCommand(command) {
                                     return command;
                                 }
                                 let item = transformItem(comArgs[8]);
-                                let position = transformId(ITEMSLOT_TRANSFORMATION, comArgs[7]);
+                                let position = transformId(ITEMSLOT_TRANSFORMATION, comArgs[6]);
                                 let count = comArgs[9];
                                 if (count !== undefined)
                                     return `${cmdRoot} replace block ${comArgs[3]} ${comArgs[4]} ${comArgs[5]} ${position} with ${item} ${count}`;
