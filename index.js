@@ -136,7 +136,7 @@ function transformFile(input, output, overwrite = false) {
             writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
             writeLine("## If you encounter a problem, make an issue on " + package.homepage)
             writeLine("## ")
-            let arrs = content.replace("\r", "").split("\n");
+            let arrs = content.replaceAll("\r", "").split("\n");
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j].trim()));
             return;

@@ -20,7 +20,7 @@ function getNbtContent(nbttext) {
     if (nbttext.startsWith("\"")) {
         return JSON.parse(nbttext);
     } else if (nbttext.startsWith("'")) {
-        return (nbttext.substring(1, nbttext.length - 1).replace("\\\\","\\"));
+        return (nbttext.substring(1, nbttext.length - 1).replaceAll("\\\\","\\"));
     }
     switch (nbttext[nbttext.length - 1]) {
         case 's':
