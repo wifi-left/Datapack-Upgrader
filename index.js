@@ -1500,9 +1500,7 @@ function transformItemTags(tag, itemId = undefined) {
             }
         }
         if (hiddenflags & (1 << 7)) {
-            if (components['trim'] != undefined) {
-                components['trim']['show_in_tooltip'] = false;
-            }
+            components['hide_additional_tooltip'] = {};
         }
     }
     return components;
