@@ -60,32 +60,98 @@ function listFile(dir) {
     });
     return list;
 }
-function transformFile(input, output, overwrite = false) {
-    if (pathLib.extname(input) != '.mcfunction') return;
+function modifyLootTableTree(data) {
+    for (let i in data) {
+        if (i === 'functions') {
+            let itemid = data['name'];
+            if (itemid == null) itemid = "air";
+            else itemid = itemid + "";
+            for (let j in data[i]) {
+                let functionType = data[i][j]['function'];
+                if (deleteNameSpace(functionType) == 'set_nbt') {
+                    data[i][j]['function'] = "set_components"
+                    let nbt = data[i][j]['tag'];
+                    try {
+                        let components = transformItemTags(NBTools.ParseNBT(nbt), itemid);
+                        data[i][j]['components'] = {}
+                        for (let k in components) {
+                            data[i][j]['components']["minecraft:" + k] = NBTools.ToJSON(components[k]);
+
+                        }
+                        delete data[i][j]['tag'];
+                    } catch (e) {
+                        writeDebugLine(e);
+                    }
+
+                }
+            }
+        } else {
+            if (typeof data[i] === 'object')
+                modifyLootTableTree(data[i]);
+        }
+    }
+}
+function transformJSON(data) {
     try {
-        if (fs.existsSync(output) == true && !overwrite) {
-            warningMessages += "\n" + ("File " + output + " already exists.")
-            return;
-        };
-        if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
-        content = fs.readFileSync(input, { encoding: "utf8" });
-        OutputFile = fs.createWriteStream(output);
-        OutputFilePath = output;
-        writeLine("##")
-        writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
-        writeLine("## If you encounter a problem, make an issue on " + package.homepage)
-        writeLine("## ")
-        let arrs = content.replace("\r", "").split("\n");
-        for (let j = 0; j < arrs.length; j++)
-            writeLine(transformCommand(arrs[j].trim()));
-        return;
+        let dat = JSON.parse(data);
+        if (dat['pools'] != null) {
+            modifyLootTableTree(dat['pools']);
+            return JSON.stringify(dat, null, "    ");
+        } else {
+            return data;
+        }
     } catch (e) {
         writeDebugLine(e);
-        console.error(`Error while reading file: ${e.message}`);
     }
+    return data;
+}
+function transformFile(input, output, overwrite = false) {
+    if (pathLib.extname(input) == '.json') {
+        try {
+            if (fs.existsSync(output) == true && !overwrite) {
+                warningMessages += "\n" + ("File " + output + " already exists.")
+                return;
+            };
+            if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
+            content = fs.readFileSync(input, { encoding: "utf8" });
+            OutputFile = fs.createWriteStream(output);
+            OutputFilePath = output;
+            writeLine(transformJSON(content));
+            return;
+        } catch (e) {
+            writeDebugLine(e);
+            console.error(`Error while reading file: ${e.message}`);
+        }
+    } else if (pathLib.extname(input) == '.mcfunction') {
+        try {
+            if (fs.existsSync(output) == true && !overwrite) {
+                warningMessages += "\n" + ("File " + output + " already exists.")
+                return;
+            };
+            if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
+            content = fs.readFileSync(input, { encoding: "utf8" });
+            OutputFile = fs.createWriteStream(output);
+            OutputFilePath = output;
+            writeLine("##")
+            writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
+            writeLine("## If you encounter a problem, make an issue on " + package.homepage)
+            writeLine("## ")
+            let arrs = content.replace("\r", "").split("\n");
+            for (let j = 0; j < arrs.length; j++)
+                writeLine(transformCommand(arrs[j].trim()));
+            return;
+        } catch (e) {
+            writeDebugLine(e);
+            console.error(`Error while reading file: ${e.message}`);
+        }
+    } else {
+        return;
+    }
+
 
 }
 function transformFolder(dir, output, overwrite = false) {
+    warningMessages = "";
     dir = dir.replaceAll("\\", "/");
     output = output.replaceAll("\\", "/");
     writeDebugLine(`## Reading the folder ${dir}...`);
@@ -98,7 +164,7 @@ function transformFolder(dir, output, overwrite = false) {
     for (let i = 0; i < files.length; i++) {
 
         readline.cursorTo(process.stdout, 0, 7)
-        readline.clearLine(process.stdout, 0); //移动光标到行首
+        // readline.clearLine(process.stdout, 0); //移动光标到行首
 
         let percent = (i / files.length).toFixed(4);
         var cell_num = Math.floor(percent * 25); // 计算需要多少个 █ 符号来拼凑图案
@@ -128,7 +194,7 @@ function transformFolder(dir, output, overwrite = false) {
     readline.cursorTo(process.stdout, 0, 7)
     readline.clearLine(process.stdout, 0); //移动光标到行首
     process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
-    console.log("\n" + warningMessages + `\nTotal: ${warningMessages.split("\n").length} Warnings/Errors`);
+    console.log("\n" + warningMessages + `\nTotal: ${warningMessages.split("\n").length - 1} Warnings/Errors`);
 }
 
 let argvs = process.argv;
@@ -142,10 +208,9 @@ Command Arguments:
 
 Supported commands:
 -h                                  Show help texts(This).
--i <input(File)>                    Transform a File.
--i <input(Folder)> <Output Folder>  Transform a Folder.
+-i <input(File)> <Output File>      Transform a File.
     [-y]                            Overwrite the existed file.
--o <output(File)>                   Set the output File.
+-i <input(Folder)> <Output Folder>  Transform a Folder.
     [-y]                            Overwrite the existed file.
 -debug                              Show debug messages
 -c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`);
@@ -164,42 +229,6 @@ Supported commands:
             for (let j = 0; j < arrs.length; j++)
                 writeLine(transformCommand(arrs[j]));
         }
-    } else if (arg == '-o') {
-        i++;
-        if (i < argvs.length) {
-            let path = argvs[i];
-            let force = false;
-            i++;
-            if (i < argvs.length) {
-                if (argvs[i] == '-y') {
-                    force = true;
-                }
-            }
-            try {
-                writeDebugLine("## DEBUG: Save file to '" + path + "'")
-                let dir = pathLib.dirname(path);
-                if (!fs.existsSync(dir)) {
-                    fs.mkdirSync(dir, { recursive: true });
-                }
-                if (fs.existsSync(path)) {
-                    if (!force) {
-                        console.error("## ERROR: The file '" + path + "' already exists. Use '-y' after file path to force write the file.")
-                        continue;
-                    } else {
-                        fs.rmSync(path);
-                    }
-                }
-                if (OutputFile != null) {
-                    OutputFile.end();
-                }
-                OutputFile = fs.createWriteStream(path, { encoding: "utf8" });
-                OutputFilePath = path;
-            } catch (error) {
-                console.error("## Error while writing file: " + error.message)
-                writeDebugLine(error);
-                continue;
-            }
-        }
     } else if (arg == '-i') {
         i++;
         if (i < argvs.length) {
@@ -217,7 +246,7 @@ Supported commands:
                         if (i < argvs.length) {
                             if (argvs[i] == '-y') {
                                 overWriteFiles = true;
-                            }
+                            } else i--;
                         }
                         transformFolder(path, output, overWriteFiles);
                         continue;
@@ -226,21 +255,30 @@ Supported commands:
                         return;
                     }
                 } else {
-                    console.info("# Reading file '" + path + "'")
-                    content = fs.readFileSync(path, { encoding: "utf8" });
+                    i++;
+                    warningMessages = "";
+                    if (i < argvs.length) {
+                        let output = argvs[i];
+                        i++;
+                        let overWriteFiles = false;
+                        if (i < argvs.length) {
+                            if (argvs[i] == '-y') {
+                                overWriteFiles = true;
+                            } else i--;
+                        }
+                        transformFile(path, output, overWriteFiles);
+                        console.log("\n" + warningMessages + `\nTotal: ${warningMessages.split("\n").length - 1} Warnings/Errors`);
+
+                    } else {
+                        console.error("## Missing output file.")
+                        return;
+                    }
                 }
             } catch (error) {
                 console.error("## Error while reading file: " + error.message)
                 writeDebugLine(error);
                 continue;
             }
-            writeLine("##")
-            writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)
-            writeLine("## If you encounter a problem, make an issue on " + package.homepage)
-            writeLine("## ")
-            let arrs = content.replace("\r", "").split("\n");
-            for (let j = 0; j < arrs.length; j++)
-                writeLine(transformCommand(arrs[j].trim()));
         }
     }
     i++;
@@ -598,6 +636,8 @@ function transformCommand(command) {
                     let extra = "";
                     for (let j = 9; j < comArgs.length; j++) extra += " " + comArgs[j];
                     return `${comArgs[0]} ${comArgs[1]}{from_color:[${fr},${fg},${fb}],scale:${s},to_color:[${tr},${tg},${tb}]}${extra}`;
+                } else {
+                    return command;
                 }
             case 'clear':
                 if (comArgs.length < 2) {
@@ -1049,6 +1089,7 @@ function transformEntityTags(tag, entityId = undefined) {
                 tag['potion_contents'] = {}
             }
             tag['potion_contents'].potion = tag['Potion'];
+
         } else {
             let potion = tag['Potion']
             if (tag['item'] == undefined) {
@@ -1181,13 +1222,13 @@ function transformItemTags(tag, itemId = undefined) {
                 }
                 break;
             case 'CanDestroy':
-                components['can_break'] = { predicates:[{blocks: []}] };
+                components['can_break'] = { predicates: [{ blocks: [] }] };
                 for (var i in tag[key]) {
                     components['can_break']['predicates'][0]['blocks'].push(tag[key][i]);
                 }
                 break;
             case 'CanPlaceOn':
-                components['can_place_on'] = { predicates:[{blocks: []}] };
+                components['can_place_on'] = { predicates: [{ blocks: [] }] };
                 for (var i in tag[key]) {
                     components['can_place_on']['predicates'][0]['blocks'].push(tag[key][i]);
                 }
@@ -1267,6 +1308,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'custom_potion_effects':
                 if (components['potion_contents'] == undefined) components['potion_contents'] = {};
                 components['potion_contents'].custom_effects = (tag[key]);
+
                 break;
             case 'pages':
                 if (deleteNameSpace(itemId) == 'writable_book') {
@@ -1458,6 +1500,29 @@ function transformItemTags(tag, itemId = undefined) {
             // console.log(key)
             // Put it into custom_data
         }
+    }
+    if (components['potion_contents'] != null) {
+        if (components['potion_contents'].custom_effects != null) {
+            for (let i in components['potion_contents'].custom_effects) {
+                let k = components['potion_contents'].custom_effects[i];
+                if ([1, "1", "1b", true, "true"].includes(k['ambient'])) {
+                    k['ambient'] = true
+                } else if ([0, "0", "0b", false, "false"].includes(k['ambient'])) {
+                    k['ambient'] = false
+                }
+                if ([1, "1", "1b", true, "true"].includes(k['show_particles'])) {
+                    k['show_particles'] = true
+                } else if ([0, "0", "0b", false, "false"].includes(k['show_particles'])) {
+                    k['show_particles'] = false
+                }
+                if ([1, "1", "1b", true, "true"].includes(k['show_icon'])) {
+                    k['show_icon'] = true
+                } else if ([0, "0", "0b", false, "false"].includes(k['show_icon'])) {
+                    k['show_icon'] = false
+                }
+            }
+        }
+
     }
     if (hiddenflags > 0) {
         if (hiddenflags & (1 << 0)) {

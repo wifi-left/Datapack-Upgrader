@@ -5,3 +5,6 @@ scoreboard players reset @a[tag=!riding,scores={GCAR.long=-1..}] GCAR.long
 data modify entity @e[limit=1,type=item,tag=sur.loot.new] Item.tag.Items set from entity @s Inventory
 
 give @s diamond_block{CanPlaceOn:["grass_block"],HideFlags:127b}
+
+particle minecraft:lava ~ ~ ~ 0 0 0 1 1
+execute if data entity @s {data:{guntype:11}} run particle minecraft:campfire_signal_smoke ~ ~ ~ 0 0 0 1 1

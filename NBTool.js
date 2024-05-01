@@ -20,7 +20,7 @@ function getNbtContent(nbttext) {
     if (nbttext.startsWith("\"")) {
         return JSON.parse(nbttext);
     } else if (nbttext.startsWith("'")) {
-        return JSON.parse(nbttext.substring(1, nbttext.length - 1));
+        return (nbttext.substring(1, nbttext.length - 1).replace("\\\\","\\"));
     }
     switch (nbttext[nbttext.length - 1]) {
         case 's':
@@ -103,9 +103,36 @@ function warpKey(key) {
         return JSON.stringify(key)
     }
 }
+function removeNbtTag(dat){
+    if(typeof dat === 'string') return getNbtContent(dat);
+    let rootType = getNbtType(dat);
+    switch (rootType) {
+        case 'intarray':
+        case 'bytearray':
+        case 'longarray':
+            dat = getNbtContent(dat);
+    }
+    for(let i in dat){
+        if(typeof dat[i] === 'string'){
+            try{
+                dat[i] = getNbtContent(dat[i]);
+            }catch(e){
+                // console.error(dat,e)
+            }
+        }else if(typeof dat[i] === 'object'){
+            removeNbtTag(dat[i]);
+        }
+    }
+}
 const NBTools = {
     Class: {
         NbtObject: class { },
+    },
+    ToJSON: function(NbtObject){
+        let data = NbtObject;
+        let obj = removeNbtTag(data);
+        if(obj != null) return obj;
+        return data;
     },
     ToString: function (NbtObject) {
         let result = "";

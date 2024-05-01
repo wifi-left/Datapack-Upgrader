@@ -26,13 +26,12 @@ Command Arguments:
 
 Supported commands:
 -h                                  Show help texts(This).
--i <input(File)>                    Transform a File.
+-i <input(File)> <Output File>      Transform a File.
+    [-y]                            Overwrite the existed file.
 -i <input(Folder)> <Output Folder>  Transform a Folder.
     [-y]                            Overwrite the existed file.
--o <output(File)>                   Set the output File.
-    [-y]                            Overwrite the existed file.
 -debug                              Show debug messages
--c <commands>                       Transform a command. Use '\n' to transform multiline commands.
+-c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`);
 ```
 ### 下载源码
 你可以直接从 GitHub 下载源码后启动
@@ -56,16 +55,4 @@ node index.js -c "give @s[distance=0..5] diamond_sword{Enchantments:[{id:\"sweep
 ```mcfunction
 give @s[distance=0..5] diamond_sword[enchantments={levels:{sweeping_edge:1s}},custom_name="\"sss\"",lore=["\"Hello world!\\u00a7a1\"","\"\\u00a7cThis is wifi_left!\""],dyed_color={rgb:114514},unbreakable={},damage=1]
 ```
-### 转换文件
-保存到文件
-```bash
-node index.js -O "<Your output file path>" -I "<Your file path>"
-```
-或者直接输出
-```bash
-node index.js -I "<Your file path>"
-```
-比如：
-```bash
-node index.js -I test.mcfunction
-```
+

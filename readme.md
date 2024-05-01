@@ -27,13 +27,12 @@ Command Arguments:
 
 Supported commands:
 -h                                  Show help texts(This).
--i <input(File)>                    Transform a File.
+-i <input(File)> <Output File>      Transform a File.
+    [-y]                            Overwrite the existed file.
 -i <input(Folder)> <Output Folder>  Transform a Folder.
     [-y]                            Overwrite the existed file.
--o <output(File)>                   Set the output File.
-    [-y]                            Overwrite the existed file.
 -debug                              Show debug messages
--c <commands>                       Transform a command. Use '\n' to transform multiline commands.
+-c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`);
 ```
 
 ### Download the source code
@@ -57,17 +56,4 @@ node index.js -c "give @s[distance=0..5] diamond_sword{Enchantments:[{id:\"sweep
 The output:
 ```mcfunction
 give @s[distance=0..5] diamond_sword[enchantments={levels:{sweeping_edge:1s}},custom_name="\"sss\"",lore=["\"Hello world!\\u00a7a1\"","\"\\u00a7cThis is wifi_left!\""],dyed_color={rgb:114514},unbreakable={},damage=1]
-```
-### Transform function files
-Save to file
-```bash
-node index.js -O "<Output file path>" -I "<Your file path>"
-```
-Or print in terminal
-```bash
-node index.js -I "<Your file path>"
-```
-For example
-```bash
-node index.js -I test.mcfunction
 ```
