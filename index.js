@@ -608,7 +608,7 @@ function transformCommand(command) {
                     let s = comArgs[5];
                     let extra = "";
                     for (let j = 6; j < comArgs.length; j++) extra += " " + comArgs[j];
-                    return `${comArgs[0]} ${comArgs[1]}{color:[${r}, ${g}, ${b}],scale:${s}}${extra}`;
+                    return `${comArgs[0]} ${comArgs[1]}{color:[${r}d, ${g}d, ${b}d],scale:${s}}${extra}`;
                 } else if (['block', '​block_marker', '​falling_dust', 'dust_pillar'].includes(deleteNameSpace(comArgs[1]))) {
                     let block = comArgs[2];
                     let blockT = parseBlockArg(block);
@@ -635,7 +635,7 @@ function transformCommand(command) {
                     let s = comArgs[8];
                     let extra = "";
                     for (let j = 9; j < comArgs.length; j++) extra += " " + comArgs[j];
-                    return `${comArgs[0]} ${comArgs[1]}{from_color:[${fr},${fg},${fb}],scale:${s},to_color:[${tr},${tg},${tb}]}${extra}`;
+                    return `${comArgs[0]} ${comArgs[1]}{from_color:[${fr}d,${fg}d,${fb}d],scale:${s},to_color:[${tr}d,${tg}d,${tb}d]}${extra}`;
                 } else {
                     return command;
                 }
