@@ -128,7 +128,7 @@ function transformFolder(dir, output, overwrite = false) {
     readline.cursorTo(process.stdout, 0, 7)
     readline.clearLine(process.stdout, 0); //移动光标到行首
     process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
-    console.log("\n" + warningMessages+`\nTotal: ${warningMessages.split("\n").length} Warnings/Errors`);
+    console.log("\n" + warningMessages + `\nTotal: ${warningMessages.split("\n").length} Warnings/Errors`);
 }
 
 let argvs = process.argv;
@@ -1122,74 +1122,12 @@ function transformEntityTags(tag, entityId = undefined) {
 }
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
+    let hiddenflags = 0;
     for (let key in tag) {
         switch (key) {
             case 'HideFlags':
-                let hiddenflags = tag[key];
-                if (hiddenflags & (1 << 0)) {
-                    if (components['enchantments'] == undefined) {
-                        components['enchantments'] = { levels: {} };
-                    }
-                    components['enchantments']['show_in_tooltip'] = false;
-
-                }
-                if (hiddenflags & (1 << 1)) {
-                    if (components['attribute_modifiers'] == undefined) {
-                        components['attribute_modifiers'] = { modifiers: [] };
-                    }
-                    components['attribute_modifiers']['show_in_tooltip'] = false;
-                }
-                if (hiddenflags & (1 << 2)) {
-                    if (getNbtContent(tag['Unbreakable']) != undefined) {
-                        if (components['unbreakable'] == undefined) {
-                            components['unbreakable'] = {};
-                        }
-                        components['unbreakable']['show_in_tooltip'] = false;
-                    }
-
-                }
-                if (hiddenflags & (1 << 3)) {
-                    if ((tag['CanDestroy']) != undefined) {
-                        if (components['can_break'] == undefined) {
-                            components['can_break'] = {};
-                        }
-                        components['can_break']['show_in_tooltip'] = false;
-                    }
-
-                }
-                if (hiddenflags & (1 << 4)) {
-                    if ((tag['CanPlaceOn']) != undefined) {
-                        if (components['can_place_on'] == undefined) {
-                            components['can_place_on'] = {};
-                        }
-                        components['can_place_on']['show_in_tooltip'] = false;
-                    }
-
-                }
-                if (hiddenflags & (1 << 5)) {
-                    if (components['stored_enchantments'] == undefined) {
-                        components['stored_enchantments'] = { levels: {} };
-                    }
-                    components['stored_enchantments']['show_in_tooltip'] = false;
-                }
-                if (hiddenflags & (1 << 6)) {
-                    if ((tag['display']) != undefined) {
-                        if ((tag['display']['color']) != undefined) {
-                            if (components['dyed_color'] == undefined) {
-                                components['dyed_color'] = {};
-                            }
-                            components['dyed_color']['show_in_tooltip'] = false;
-                        }
-
-                    }
-                }
-                if (hiddenflags & (1 << 7)) {
-                    if (components['trim'] != undefined) {
-                        components['trim']['show_in_tooltip'] = false;
-                    }
-                }
+                hiddenflags = getNbtContent(tag[key]);
                 break;
-
             case 'StoredEnchantments':
                 components['stored_enchantments'] = { levels: {} };
                 for (let i in tag[key]) {
@@ -1519,6 +1457,52 @@ function transformItemTags(tag, itemId = undefined) {
                 components['custom_data'][key] = tag[key];
             // console.log(key)
             // Put it into custom_data
+        }
+    }
+    if (hiddenflags > 0) {
+        if (hiddenflags & (1 << 0)) {
+            if (components['enchantments'] != undefined) {
+                components['enchantments']['show_in_tooltip'] = false;
+            }
+        }
+        if (hiddenflags & (1 << 1)) {
+            if (components['attribute_modifiers'] != undefined) {
+                components['attribute_modifiers']['show_in_tooltip'] = false;
+            }
+
+        }
+        if (hiddenflags & (1 << 2)) {
+            if ((components['unbreakable']) != undefined) {
+                components['unbreakable']['show_in_tooltip'] = false;
+            }
+        }
+        if (hiddenflags & (1 << 3)) {
+            if (components['can_break'] != undefined) {
+                components['can_break']['show_in_tooltip'] = false;
+            }
+
+        }
+        if (hiddenflags & (1 << 4)) {
+            if (components['can_place_on'] != undefined) {
+                components['can_place_on']['show_in_tooltip'] = false;
+            }
+
+        }
+        if (hiddenflags & (1 << 5)) {
+            if (components['stored_enchantments'] != undefined) {
+                components['stored_enchantments']['show_in_tooltip'] = false;
+            }
+
+        }
+        if (hiddenflags & (1 << 6)) {
+            if (components['dyed_color'] != undefined) {
+                components['dyed_color']['show_in_tooltip'] = false;
+            }
+        }
+        if (hiddenflags & (1 << 7)) {
+            if (components['trim'] != undefined) {
+                components['trim']['show_in_tooltip'] = false;
+            }
         }
     }
     return components;
