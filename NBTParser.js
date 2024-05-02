@@ -83,6 +83,8 @@ function NBTParser(str) {
             }
             i++;
         }
+        if(StringBuffer === 'true') StringBuffer = true;
+        else if (StringBuffer === 'false') StringBuffer = false;
         return StringBuffer;
     }
     function parseObject() {
