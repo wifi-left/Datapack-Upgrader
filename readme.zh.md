@@ -3,6 +3,8 @@
 
 该项目旨在将您的命令从 1.20.4 升级到较新版本的 Minecraft (1.21)。
 
+使用结果例子（地图转换结果）：[Map-MiniGames](https://github.com/wifi-left/Map-MiniGames)
+
 ## 特点
 
 **支持的命令**
