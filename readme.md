@@ -1,7 +1,7 @@
 # Datapack Updater
 **English** | [简体中文](./readme.zh.md)
 
-The project aims to upgrade your commands from 1.20.4 to the newer version of Minecraft (1.20.5).
+The project aims to upgrade your commands from 1.20.4 to the newer version of Minecraft (1.21).
 
 ## Features
 I'm still working on it.

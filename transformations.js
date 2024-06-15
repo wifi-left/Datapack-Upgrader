@@ -849,6 +849,26 @@ function transformBlockTags(tag) {
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
+    if (tag['Attributes'] != undefined) {
+        let t = tag['Attributes'];
+        tag['attributes'] = [];
+        let newtags = tag['attributes'];
+        for (let i in t) {
+            let newtag = { base: t[i]['Base'], id: t[i]['Name'] };
+            if (t[i]['Modifiers'] != null) {
+                newtag.modifiers = transformAttribute(t[i]['Modifiers'])
+            }
+            // id，由 Name重命名。
+            // base，由 Base重命名。
+            // modifiers，由 Modifiers重命名。
+            newtags.push(newtag);
+        }
+        delete tag['Attributes'];
+    }
+    if (tag['BeamTarget'] != undefined) {
+        tag['beam_target'] = tag['BeamTarget'];
+        delete tag['BeamTarget'];
+    }
     if (tag['BeamTarget'] != undefined) {
         tag['beam_target'] = tag['BeamTarget'];
         delete tag['BeamTarget'];
@@ -947,6 +967,37 @@ function transformEntityTags(tag, entityId = undefined) {
     }
     return tag;
 }
+function transformAttribute(arrs) {
+    let modifiers = [];
+    for (let i in arrs) {
+        let type = arrs[i]['AttributeName'];
+        let slot = arrs[i]['Slot'];
+        let uuid = getNbtContent(arrs[i]['UUID']);
+        let name = arrs[i]['Name'];
+        let amount = arrs[i]['Amount'];
+        let operation = transformId(ARRTIBUTEOPERATION_TRANSFORMATION, arrs[i]['Operation']);
+        let modifier = {};
+        if (type !== undefined) {
+            modifier['type'] = type;
+        } if (slot === undefined) {
+            slot = 'any';
+        }
+        modifier['slot'] = slot;
+        if (uuid !== undefined) {
+            modifier['uuid'] = uuid;
+        } if (name === undefined) {
+            name = 'noName'
+        }
+        modifier['name'] = name;
+        if (amount !== undefined) {
+            modifier['amount'] = amount;
+        } if (operation !== undefined) {
+            modifier['operation'] = operation;
+        }
+        modifiers.push(modifier);
+    }
+    return modifiers;
+}
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
     let hiddenflags = 0;
@@ -1039,34 +1090,7 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'AttributeModifiers':
                 let arrs = (tag[key]);
-                let modifiers = [];
-                for (let i in arrs) {
-                    let type = arrs[i]['AttributeName'];
-                    let slot = arrs[i]['Slot'];
-                    let uuid = getNbtContent(arrs[i]['UUID']);
-                    let name = arrs[i]['Name'];
-                    let amount = arrs[i]['Amount'];
-                    let operation = transformId(ARRTIBUTEOPERATION_TRANSFORMATION, arrs[i]['Operation']);
-                    let modifier = {};
-                    if (type !== undefined) {
-                        modifier['type'] = type;
-                    } if (slot === undefined) {
-                        slot = 'any';
-                    }
-                    modifier['slot'] = slot;
-                    if (uuid !== undefined) {
-                        modifier['uuid'] = uuid;
-                    } if (name === undefined) {
-                        name = 'noName'
-                    }
-                    modifier['name'] = name;
-                    if (amount !== undefined) {
-                        modifier['amount'] = amount;
-                    } if (operation !== undefined) {
-                        modifier['operation'] = operation;
-                    }
-                    modifiers.push(modifier);
-                }
+                let modifiers = transformAttribute(arrs);
                 components['attribute_modifiers'] = { modifiers: modifiers };
 
                 break;

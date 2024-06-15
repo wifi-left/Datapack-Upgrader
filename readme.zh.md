@@ -1,7 +1,7 @@
 # Datapack Updater
 [English](./readme.md) | **简体中文**
 
-该项目旨在将您的命令从 1.20.4 升级到较新版本的 Minecraft (1.20.5)。
+该项目旨在将您的命令从 1.20.4 升级到较新版本的 Minecraft (1.21)。
 
 ## 特点
 
