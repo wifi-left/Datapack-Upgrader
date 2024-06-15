@@ -984,7 +984,13 @@ function transformAttribute(arrs) {
         }
         modifier['slot'] = slot;
         if (uuid !== undefined) {
-            modifier['id'] = JSON.stringify(uuid);
+            let uid = ""+parseInt(Math.random()*(1000));
+            uid = "i";
+            // console.log(uuid)
+            for(let i = 0;i<uuid.length;i++){
+                uid += ""+uuid[i];
+            }
+            modifier['id'] = uid;
         } if (name === undefined) {
             name = 'noName'
         }
