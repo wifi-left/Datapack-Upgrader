@@ -11,14 +11,29 @@ const ITEMSLOT_TRANSFORMATION = { "horse.armor": "armor.body" }
 const MAP_TRANSFORMATION = {
     "0": "player", "1": "frame", "2": "red_marker", "3": "blue_marker", "4": "target_x", "5": "target_point", "6": "player_off_map", "7": "player_off_limits", "8": "mansion", "9": "monument", "10": "banner_white", "11": "banner_orange", "12": "banner_magenta", "13": "banner_light_blue", "14": "banner_yellow", "15": "banner_lime", "16": "banner_pink", "17": "banner_gray", "18": "banner_light_gray", "19": "banner_cyan", "20": "banner_purple", "21": "banner_blue", "22": "banner_brown", "23": "banner_green", "24": "banner_red", "25": "banner_black", "26": "red_x", "27": "village_desert", "28": "village_plains", "29": "village_savanna", "30": "village_snowy", "31": "village_taiga", "32": "jungle_temple", "33": "swamp_hut"
 }
-const DATAPATH_TRANSFORMATION = [
-]
+const BANNERCOLLOR_TRANSFORMATION = {
+    "0": "white", "1": "orange", "2": "magenta", "3": "light_blue", "4": "yellow", "5": "lime", "6": "pink", "7": "gray", "8": "light_gray", "9": "cyan", "10": "purple", "11": "blue", "12": "brown", "13": "green", "14": "red", "15": "black"
+};
+const BANNERNAME_TRANSFORMATION = {
+    "b": "base", "bs": "stripe_bottom", "ts": "stripe_top", "ls": "stripe_left", "rs": "stripe_right", "cs": "stripe_center", "ms": "stripe_middle", "drs": "stripe_downright", "dls": "stripe_downleft", "ss": "small_stripes", "cr": "cross", "sc": "straight_cross", "ld": "diagonal_left", "rud": "diagonal_right", "lud": "diagonal_up_left", "rd": "diagonal_up_right", "vh": "half_vertical", "vhr": "half_vertical_right", "hh": "half_horizontal", "hhb": "half_horizontal_bottom", "bl": "square_bottom_left", "br": "square_bottom_right", "tl": "square_top_left", "tr": "square_top_right", "bt": "triangle_bottom", "tt": "triangle_top", "bts": "triangles_bottom", "tts": "triangles_top", "mc": "circle", "mr": "rhombus", "bo": "border", "cbo": "curly_border", "bri": "bricks", "gra": "gradient", "gru": "gradient_up", "cre": "creeper", "sku": "skull", "flo": "flower", "moj": "mojang", "glb": "globe", "pig": "piglin", "flw": "flow", "gus": "guster"
+}
+const DATAPATH_TRANSFORMATION = [];
 function transformId(array, id) {
     let res = array[id];
     if (res == undefined || res == "") return id;
     return res;
 }
 
+function transformBannerPatterns(banner) {
+    let result = [];
+    for (let i in banner) {
+        let ele = banner[i];
+        let color = transformId(BANNERCOLLOR_TRANSFORMATION, getNbtContent(ele['Color']));
+        let pattern = "minecraft:" + transformId(BANNERNAME_TRANSFORMATION, getNbtContent(ele['Pattern']));
+        result.push({ color: color, pattern: pattern })
+    }
+    return result;
+}
 function modifyLootTableTree(data) {
     for (let i in data) {
         if (i === 'functions') {
@@ -804,7 +819,7 @@ function transFormOldPos(pos) {
 }
 function transformProfileProperties(property) {
     let Signature = property['Signature'];
-    let Value = property['Signature'];
+    let Value = property['Value'];
     let name = 'textures';
     return { name: name, value: Value, signature: Signature };
 }
@@ -984,11 +999,11 @@ function transformAttribute(arrs) {
         }
         modifier['slot'] = slot;
         if (uuid !== undefined) {
-            let uid = ""+parseInt(Math.random()*(1000));
+            let uid = "" + parseInt(Math.random() * (1000));
             uid = "i";
             // console.log(uuid)
-            for(let i = 0;i<uuid.length;i++){
-                uid += ""+uuid[i];
+            for (let i = 0; i < uuid.length; i++) {
+                uid += "" + uuid[i];
             }
             modifier['id'] = uid;
         } if (name === undefined) {
@@ -1283,7 +1298,7 @@ function transformItemTags(tag, itemId = undefined) {
                     delete tag[key]['Base'];
                 }
                 if (banner_patterns != undefined) {
-                    components['banner_patterns'] = banner_patterns;
+                    components['banner_patterns'] = transformBannerPatterns(banner_patterns);
                     delete tag[key]['Patterns'];
                 }
                 if (pot_decorations != undefined) {
