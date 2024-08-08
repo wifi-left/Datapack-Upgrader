@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node index.js -debug -i sample debug -y",
-    "test2": "node index.js -debug -i \"sample/functions/test2.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
+    "test2": "node index.js -debug -i \"sample/functions/test.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
     "run": "node index.js",
     "help": "node index.js -h"
   },

@@ -576,8 +576,11 @@ function transformCommand(command) {
 
                         return res;
                     case 'merge':
-                        writeLine(ERROR_MESSAGES.UNSUPPORTED);
-                        return command;
+                        writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM);
+                        let tresult2 = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
+                        i = tresult2.offset;
+                        res += ` ${type} ${tresult2.result}`;
+                        return res;
                     default:
                         throw new SyntaxError(ERROR_MESSAGES.UNKNOWN_ARGUMENTS)
                 }
@@ -727,7 +730,7 @@ function transformSelector(selectorText) {
     return toSelectorText(selector);
 }
 function transformEntityItemTag(itemTag) {
-
+    // console.log(itemTag)
     let id = itemTag.id;
     let rawid = getNbtContent(id);
     let count = getNbtContent(itemTag.Count);
@@ -974,6 +977,7 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['Item'] != undefined) {
         tag['Item'] = transformEntityItemTag(tag['Item']);
     }
+    // writeDebugLine(tag)
     if (tag['Inventory'] != undefined) {
         tag['Inventory'] = transformBlockItemTag(tag['Inventory'])
     }

@@ -1,3 +1,1 @@
-item replace entity @s container.10 with minecraft:white_banner{BlockEntityTag:{Patterns:[{Color:13,Pattern:"bo"}]},display:{Name:'{"text":"Convert Armor Stands to Markers","color":"green","bold":true}',Lore:['{"text":"Range: 100 Blocks, excluding [no_marker]"}']},Enchantments:[{}],gui_item:1b}
-
-item replace entity @s container.26 with minecraft:player_head{display:{Name:'{"text":"Next Page (2)","color":"dark_red","bold":true}',Lore:['{"text":"Click to change page!"}']},SkullOwner:{Id:[I;-720120218,160580295,-1700338408,-1472328904],Properties:{textures:[{Value:"eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMTliZjMyOTJlMTI2YTEwNWI1NGViYTcxM2FhMWIxNTJkNTQxYTFkODkzODgyOWM1NjM2NGQxNzhlZDIyYmYifX19"}]}},gui_item:1b}
+data merge entity @e[type=item,limit=1] {Item:{tag:{HideFlags:63,CanDestroy:["#minecraft:bedblocks"],CanPlaceOn:["#minecraft:bwplace"]}}}
