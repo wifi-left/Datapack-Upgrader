@@ -4,8 +4,8 @@
   "description": "Upgrade your datapack from 1.20.4 to 1.20.5",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js -debug -i sample debug -y",
-    "test2": "node index.js -debug -i \"sample/functions/test.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
+    "test": "npm install & node index.js -debug -i sample debug -y",
+    "test2": "npm install & node index.js -debug -i \"sample/functions/test.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
     "run": "node index.js",
     "help": "node index.js -h"
   },
