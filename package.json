@@ -11,5 +11,8 @@
   },
   "author": "wifi_left",
   "license": "ISC",
-  "homepage": "https://github.com/wifi-left/Datapack-Upgrader"
+  "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
+  "dependencies": {
+    "readline-sync": "^1.4.10"
+  }
 }

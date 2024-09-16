@@ -1,5 +1,7 @@
 const { transformJSON, transformCommand } = require("./transformations.js");
-const { Settings,writeDebugLine,writeLine } = require("./inputSystem.js");
+const { Settings, writeDebugLine, writeLine } = require("./inputSystem.js");
+const readlineSync = require('readline-sync');
+
 
 const fs = require("fs");
 const package = require("./package.json")
@@ -10,6 +12,11 @@ console.warn("\x1B[0m### \x1B[32m\x1B[1mDatapack Upgrader \x1B[31mv" + package.v
 console.warn("\x1B[0m### \x1B[1mIf you encounter a problem, make an issue on \x1B[34m" + package.homepage)
 console.warn("\x1B[0m### Use '-h' to get more information about arguments.")
 console.warn("\x1B[0m### \x1B[0m")
+
+process.on('SIGINT', () => {
+    console.log('\x1B[0m')
+})
+
 
 function listFile(dir) {
     let arr = fs.readdirSync(dir);
@@ -30,7 +37,7 @@ function transformFile(input, output, overwrite = false) {
     if (pathLib.extname(input) == '.json') {
         try {
             if (fs.existsSync(output) == true && !overwrite) {
-                warningMessages += "\n" + ("File " + output + " already exists.")
+                warningMessages += "\n" + ("## WARNING: File " + output + " already exists. Skip it. If you want to overwrite it, please use '-y' after the arguments.")
                 return;
             };
             if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
@@ -41,12 +48,12 @@ function transformFile(input, output, overwrite = false) {
             return;
         } catch (e) {
             writeDebugLine(e);
-            console.error(`Error while reading file: ${e.message}`);
+            console.error(`## ERROR: Reading file failed: ${e.message}`);
         }
     } else if (pathLib.extname(input) == '.mcfunction') {
         try {
             if (fs.existsSync(output) == true && !overwrite) {
-                Settings.warningMessages += "\n" + ("File " + output + " already exists.")
+                Settings.warningMessages += "\n" + ("## WARNING: File " + output + " already exists. Skip it. If you want to overwrite it, please use '-y' after the arguments.")
                 return;
             };
             if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
@@ -63,7 +70,7 @@ function transformFile(input, output, overwrite = false) {
             return;
         } catch (e) {
             writeDebugLine(e);
-            console.error(`Error while reading file: ${e.message}`);
+            console.error(`## ERROR: Reading file failed: ${e.message}`);
         }
     } else {
         return;
@@ -117,13 +124,7 @@ function transformFolder(dir, output, overwrite = false) {
     process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
     console.log("\n" + Settings.warningMessages + `\nTotal: ${Settings.warningMessages.split("\n").length - 1} Warnings/Errors`);
 }
-
-let argvs = process.argv;
-let i = 0;
-while (i < argvs.length) {
-    let arg = argvs[i];
-    if (arg == '-h') {
-        console.log(`
+const HELP_CONTENT = `
 Command Arguments:
 [Commands 1] [Commands2] ...
 
@@ -134,7 +135,36 @@ Supported commands:
 -i <input(Folder)> <Output Folder>  Transform a Folder.
     [-y]                            Overwrite the existed file.
 -debug                              Show debug messages
--c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`);
+-c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`;
+let argvs = process.argv;
+let i = 0;
+if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c") == -1) {
+    console.log("\n\x1B[32mWhat do you want to do?\x1B[0m\n\x1B[33m[1] \x1B[0mTranslate commands from input.\n\x1B[33m[2] \x1B[0mTranslate commands from files/folders\n\x1B[33m[3] \x1B[0mGet help of command line arguments.\n\x1B[32mEnter the number between '[]' to continue.")
+    let cont = readlineSync.question("\x1B[34mINPUT> \x1B[33m")
+    if (cont == '1') {
+        console.log("\x1B[32mPlease enter the command below: ")
+        let cmd = readlineSync.question("\x1B[34mINPUT> \x1B[33m")
+        argvs.push("-c")
+        argvs.push(cmd)
+    } else if (cont == '3') {
+        argvs.push("-h")
+    } else if (cont == '2') {
+        console.log("\x1B[32mPlease enter the file or folder path below: ")
+        let inputFile = readlineSync.questionPath("\x1B[35mINPUT FILE/FOLDER> \x1B[33m")
+        let outputFile = readlineSync.questionPath("\x1B[36mOUTPUT FILE/FOLDER> \x1B[33m", { exists: null })
+        let overwrite = readlineSync.keyInYN("\x1B[37mIf the folder exist, do you want to overwrite it?\x1B[33m")
+        argvs.push("-i")
+        argvs.push(inputFile)
+        argvs.push(outputFile)
+        if(overwrite) argvs.push("-y")
+
+    }
+    console.log('\x1B[0m')
+}
+while (i < argvs.length) {
+    let arg = argvs[i];
+    if (arg == '-h') {
+        console.log(HELP_CONTENT);
         return;
     }
     if (arg == '-debug') {
