@@ -91,7 +91,6 @@ function transformFolder(dir, output, overwrite = false) {
     if (!output.endsWith("/")) output = output + "/";
     for (let i = 0; i < files.length; i++) {
 
-        readline.cursorTo(process.stdout, 0, 7)
         // readline.clearLine(process.stdout, 0); //移动光标到行首
 
         let percent = (i / files.length).toFixed(4);
@@ -119,8 +118,7 @@ function transformFolder(dir, output, overwrite = false) {
         process.stdout.write(cmdText, 'utf-8');
 
     }
-    readline.cursorTo(process.stdout, 0, 7)
-    readline.clearLine(process.stdout, 0); //移动光标到行首
+
     process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
     console.log("\n" + Settings.warningMessages + `\nTotal: ${Settings.warningMessages.split("\n").length - 1} Warnings/Errors`);
 }
@@ -152,7 +150,7 @@ if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c"
         console.log("\x1B[32mPlease enter the file or folder path below: ")
         let inputFile = readlineSync.questionPath("\x1B[35mINPUT FILE/FOLDER> \x1B[33m")
         let outputFile = readlineSync.questionPath("\x1B[36mOUTPUT FILE/FOLDER> \x1B[33m", { exists: null })
-        let overwrite = readlineSync.keyInYN("\x1B[37mIf the folder exist, do you want to overwrite it?\x1B[33m")
+        let overwrite = readlineSync.keyInYN("\x1B[34mIf the folder exist, do you want to overwrite it?\x1B[33m")
         argvs.push("-i")
         argvs.push(inputFile)
         argvs.push(outputFile)
