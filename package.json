@@ -7,7 +7,8 @@
     "test": "npm install && node index.js -debug -i sample debug -y",
     "test2": "npm install && node index.js -debug -i \"sample/functions/test.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
     "run": "node index.js",
-    "help": "node index.js -h"
+    "help": "node index.js -h",
+    "ui": "node index.js -debug"
   },
   "author": "wifi_left",
   "license": "ISC",

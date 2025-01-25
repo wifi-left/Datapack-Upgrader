@@ -1033,7 +1033,7 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'StoredEnchantments':
                 components['stored_enchantments'] = { levels: {} };
-                for (let i in tag[key]) {
+                for (let i = 0; i < tag[key].length; i++) {
                     let id = getNbtContent(tag[key][i]['id']);
                     id = transformId(ENCHANTMENTS_TRANSFORMATION, id);
                     let level = tag[key][i]['lvl'];
@@ -1042,8 +1042,9 @@ function transformItemTags(tag, itemId = undefined) {
                 break;
             case 'Enchantments':
                 components['enchantments'] = { levels: {} };
-                for (let i in tag[key]) {
+                for (let i = 0; i < tag[key].length; i++) {
                     let id = getNbtContent(tag[key][i]['id']);
+                    // console.log(id)
                     id = "minecraft:" + deleteNameSpace(transformId(ENCHANTMENTS_TRANSFORMATION, id));
                     if (id == "" || id == "none") {
                         components['enchantment_glint_override'] = true;
@@ -1086,7 +1087,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'CanDestroy':
                 components['can_break'] = { predicates: [{ blocks: [] }] };
                 var k = 0;
-                for (var i in tag[key]) {
+                for (let i = 0; i < tag[key].length; i++) {
                     if (getNbtContent(tag[key][i]).startsWith("#")) {
                         if (components['can_break']['predicates'][k]['blocks'].length != 0)
                             k++;
@@ -1101,7 +1102,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'CanPlaceOn':
                 components['can_place_on'] = { predicates: [{ blocks: [] }] };
                 var k = 0;
-                for (var i in tag[key]) {
+                for (let i = 0; i < tag[key].length; i++) {
                     if (getNbtContent(tag[key][i]).startsWith("#")) {
                         if (components['can_place_on']['predicates'][k]['blocks'].length != 0)
                             k++;
