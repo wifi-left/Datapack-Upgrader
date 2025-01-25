@@ -48,6 +48,11 @@ git clone https://github.com/wifi-left/Datapack-Upgrader.git
 
 You must install Node.js to use the project.
 
+Then run:
+```bash
+npm install
+```
+
 ### Use in command mode:
 ```bash
 node index.js -c "<Your commands here>"

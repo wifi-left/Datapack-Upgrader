@@ -45,6 +45,11 @@ git clone https://github.com/wifi-left/Datapack-Upgrader.git
 
 **你需要安装 Node.js 来使用本项目**
 
+接着，你需要运行：
+```bash
+npm install
+```
+
 ### 转换单个命令
 ```bash
 node index.js -c "<Your commands here>"
