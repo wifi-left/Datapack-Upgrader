@@ -1,1 +1,1 @@
-data merge entity @e[type=item,limit=1] {Item:{tag:{HideFlags:63,CanDestroy:["#minecraft:bedblocks"],CanPlaceOn:["#minecraft:bwplace"]}}}
+particle minecraft:item minecraft:carrot ~ ~ ~

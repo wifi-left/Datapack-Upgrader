@@ -416,7 +416,7 @@ function transformCommand(command) {
                     return `${comArgs[0]} ${comArgs[1]}{block_state:{Name:${warpKey(blockT.id)},Properties:{${blockState}}}}${extra}`;
                 } else if (deleteNameSpace(comArgs[1]) == 'item') {
                     let item = comArgs[2];
-                    let itemT = parseBlockArg(block);
+                    let itemT = parseItemArg(item);
                     let extra = "";
                     for (let j = 3; j < comArgs.length; j++) extra += " " + comArgs[j];
                     return `${comArgs[0]} ${comArgs[1]}{item:${warpKey(itemT.id)}}${extra}`;
