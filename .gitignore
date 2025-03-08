@@ -1,4 +1,6 @@
 ./debug
 ./node_modules
+./debug/functions
 /node_modules
 /debug
+/debug/functions
