@@ -10,8 +10,13 @@ function transformId(array, id) {
     return res;
 }
 
-function transformTellraw(text) {
-    let d = JSON.parse(text);
+function transformTellraw(text, fallback = "") {
+    let d = text;
+    try {
+        d = JSON.parse(d);
+    } catch (e) {
+        d = JSON.parse(fallback);
+    }
     return JSON.stringify(transformRawMsg(d));
 }
 function transformClickEvent(data) {
@@ -379,6 +384,7 @@ function transformCommand(command) {
                     return `${cmdRoot} ${selector}`;
                 } else {
                     let selector = transformSelector(comArgs[1]);
+                    // console.log(comArgs[2])
                     let item = transformItem(comArgs[2], "~");
                     let extra = "";
                     if (comArgs.length == 4) {
@@ -717,7 +723,9 @@ function transformBlock(blockText) {
     return toItemText(item);
 }
 function transformItem(itemText, splitChar = '=') {
+    // console.log(itemText)
     let item = parseItemArg(itemText);
+
     // console.log(NBTools.ToString(item.tags))
     if (item.tags != null && item.tags != "") {
         // return itemText;
@@ -730,12 +738,12 @@ function transformItem(itemText, splitChar = '=') {
     }
     return toItemText(item, splitChar);
 }
-function transformProfile(tag) {
-    return tag;
-}
 function transformBlockTags(tag) {
     if (tag['Items'] != undefined) {
         tag['Items'] = transformBlockItemTag(tag['Items']);
+    }
+    if (tag['CustomName'] != undefined) {
+        tag['CustomName'] = NBTStringParse(tag['CustomName']);
     }
     // if(tag[''])
     // if (tag['FlowerPos'] != undefined) {
@@ -767,6 +775,13 @@ function transformEntityTags(tag, entityId = undefined) {
             tag['HandItems'][i] = transformEntityItemTag(tag['HandItems'][i]);
         }
     }
+    if (tag['CustomName'] != undefined) {
+        tag['CustomName'] = NBTStringParse(tag['CustomName']);
+    }
+    if (tag['text'] != undefined) {
+        tag['text'] = NBTStringParse(tag['text']);
+    }
+
     // if (tag['FlowerPos'] != undefined) {
     //     tag['hive_pos'] = tag['FlowerPos'];
     //     delete tag['FlowerPos'];
@@ -821,9 +836,11 @@ function NBTStringParse(text) {
     let res = "";
     if (text.startsWith("'")) {
         text = text.replaceAll('"', "\\\"");
-        res = JSON.parse('"' + text.substring(1, text.length - 1) + '"');
+        res = transformTellraw(JSON.parse('"' + text.substring(1, text.length - 1) + '"'));
     } else if (text.startsWith('"')) {
-        res = JSON.parse(text);
+        // console.log(text)
+
+        res = transformTellraw(JSON.parse(text), text);
     } else {
         res = text;
     }

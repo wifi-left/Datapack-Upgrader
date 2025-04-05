@@ -107,7 +107,7 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
                 tempStr += text[i];
             }
         } else {
-            if (text[i] == equalsChar && fanXieGang == 0 && stack.length <= 0) {
+            if (equalsChar.indexOf(text[i])!=-1 && fanXieGang == 0 && stack.length <= 0) {
                 keyName = tempStr;
                 if (keyName == '') {
                     throw SyntaxError("Empty keyName.");
@@ -270,6 +270,7 @@ function parseItemArg(item) {
     if (idx == -1 || (idx > idxNbt && item.endsWith("}"))) idx = idxNbt;
     let tagAndComponent = item.substring(idx);
     let tAcs = splitTagAndComponents(tagAndComponent);
+    // console.log(tAcs.components)
     return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
 }
 function parseEntityArg(entity) {
@@ -305,7 +306,7 @@ function parseComponents(components) {
         components = (components.substring(1, components.length - 1));
     }
     // console.log(components)
-    return parseValues(components, ",", "=", false, true);
+    return parseValues(components, ",", ["=","~"], false, true);
 }
 function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
