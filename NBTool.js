@@ -20,10 +20,13 @@ function getNbtContent(nbttext) {
     if (nbttext.startsWith("\"")) {
         return JSON.parse(nbttext);
     } else if (nbttext.startsWith("'")) {
-        return (nbttext.substring(1, nbttext.length - 1).replaceAll("\\\\","\\"));
+        return (nbttext.substring(1, nbttext.length - 1).replaceAll("\\\\", "\\"));
     }
-    if(nbttext.length<=1) return nbttext;
-    if('0'>nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2]>'9') return nbttext;
+    if (nbttext.length <= 1) return nbttext;
+    if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') {
+        if ('0' > nbttext[nbttext.length - 1] || nbttext[nbttext.length - 2] > '9')
+            return nbttext;
+    }
     switch (nbttext[nbttext.length - 1]) {
         case 's':
         case 'S':
@@ -64,14 +67,14 @@ function getNbtType(nbttext) {
         return 'compound';
 
     }
-    if (typeof (nbttext) !== 'string') return nbttext;
+    if (typeof (nbttext) !== 'string') return typeof (nbttext);
     if (nbttext.startsWith("\"")) {
         return 'string';
     } else if (nbttext.startsWith("'")) {
         return 'string';
     }
-    if(nbttext.length<=1) return "string";
-    if('0'>nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2]>'9') return nbttext;
+    if (nbttext.length <= 1) return "string";
+    if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') return 'string';
     switch (nbttext[nbttext.length - 1]) {
         case 'b':
         case 'B':
@@ -98,8 +101,10 @@ function getNbtType(nbttext) {
 function warpComponentValue(key) {
     return key;
 }
-function warpKey(key) {
-
+function warpKey(key, isData=false) {
+    if(isData){
+        if(key.startsWith('"')) return key;
+    }
     if (typeof key !== 'string')
         throw new SyntaxError("Argument is not a String");
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
@@ -109,8 +114,8 @@ function warpKey(key) {
         return JSON.stringify(key)
     }
 }
-function removeNbtTag(dat){
-    if(typeof dat === 'string') return getNbtContent(dat);
+function removeNbtTag(dat) {
+    if (typeof dat === 'string') return getNbtContent(dat);
     let rootType = getNbtType(dat);
     switch (rootType) {
         case 'intarray':
@@ -118,14 +123,13 @@ function removeNbtTag(dat){
         case 'longarray':
             dat = getNbtContent(dat);
     }
-    for(let i in dat){
-        if(typeof dat[i] === 'string'){
-            try{
+    for (let i in dat) {
+        if (typeof dat[i] === 'string') {
+            try {
                 dat[i] = getNbtContent(dat[i]);
-            }catch(e){
-                // console.error(dat,e)
+            } catch (e) {
             }
-        }else if(typeof dat[i] === 'object'){
+        } else if (typeof dat[i] === 'object') {
             removeNbtTag(dat[i]);
         }
     }
@@ -134,10 +138,10 @@ const NBTools = {
     Class: {
         NbtObject: class { },
     },
-    ToJSON: function(NbtObject){
+    ToJSON: function (NbtObject) {
         let data = NbtObject;
         let obj = removeNbtTag(data);
-        if(obj != null) return obj;
+        if (obj != null) return obj;
         return data;
     },
     ToString: function (NbtObject) {
@@ -152,7 +156,7 @@ const NBTools = {
                 }
                 return `[${result}]`;
             case 'string':
-                return NbtObject;
+                return warpKey(NbtObject, true);
             case 'short':
             case 'int':
             case 'long':

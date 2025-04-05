@@ -1,4 +1,7 @@
 // Author: wifi_left
+
+const { writeDebugLine } = require("./inputSystem");
+
 // 灵感来源自：https://zhuanlan.zhihu.com/p/107344979
 function NBTParser(str) {
     let i = 0;
@@ -83,7 +86,7 @@ function NBTParser(str) {
             }
             i++;
         }
-        if(StringBuffer === 'true') StringBuffer = true;
+        if (StringBuffer === 'true') StringBuffer = true;
         else if (StringBuffer === 'false') StringBuffer = false;
         return StringBuffer;
     }
@@ -106,8 +109,17 @@ function NBTParser(str) {
                     eatComma();
                     skipWhitespace();
                 }
-                const key = parseString();
+                let key = parseString();
                 if (key === "" && str[i] === '}') break;
+                if (key.startsWith('"')) {
+                    try {
+                        key = JSON.parse(key);
+                    } catch (e) {
+                        writeDebugLine("Key: " + key + "; catch: " + e.message);
+
+                        throw new SyntaxError("Expected '\"' at " + i + " (End)");
+                    }
+                }
                 skipWhitespace();
                 eatColon();
                 const value = parseValue();

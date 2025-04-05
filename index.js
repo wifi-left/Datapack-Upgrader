@@ -1,8 +1,27 @@
-const { transformJSON, transformCommand } = require("./transformations.js");
+#!/usr/bin/env node
+
+const transformation_1_20 = require("./transformations/transformation_1_20.js");
+const transformation_1_21_4 = require("./transformations/transformation_1_21_4.js");
 const { Settings, writeDebugLine, writeLine } = require("./inputSystem.js");
 const readlineSync = require('readline-sync');
-
-
+const SUPPORTED_VERSION = ["1.20", "1.21.4"]
+var transform_version = "1.20";
+function transformCommand(cmd) {
+    if (transform_version == "1.20") {
+        return transformation_1_20.transformCommand(cmd);
+    } else if (transform_version == "1.21.4") {
+        return transformation_1_21_4.transformCommand(cmd);
+    }
+    return cmd;
+}
+function transformJSON(cmd) {
+    if (transform_version == "1.20") {
+        return transformation_1_20.transformJSON(cmd);
+    } else if (transform_version == "1.21.4") {
+        return transformation_1_21_4.transformJSON(cmd);
+    }
+    return cmd;
+}
 const fs = require("fs");
 const package = require("./package.json")
 const pathLib = require('path')
@@ -127,6 +146,8 @@ Command Arguments:
 [Commands 1] [Commands2] ...
 
 Supported commands:
+-v <1.20/1.21.4>                    Change transformation pattern.
+                                    1.20 for 1.20 to 1.21; 1.21.4 for 1.21.4 to 1.21.5
 -h                                  Show help texts(This).
 -i <input(File)> <Output File>      Transform a File.
     [-y]                            Overwrite the existed file.
@@ -136,8 +157,8 @@ Supported commands:
 -c <commands>                       Transform a command. Use '\\n' to transform multiline commands.`;
 let argvs = process.argv;
 let i = 0;
-if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c") == -1) {
-    console.log("\n\x1B[32mWhat do you want to do?\x1B[0m\n\x1B[33m[1] \x1B[0mTranslate commands from input.\n\x1B[33m[2] \x1B[0mTranslate commands from files/folders\n\x1B[33m[3] \x1B[0mGet help of command line arguments.\n\x1B[32mEnter the number between '[]' to continue.")
+function ci_dialog() {
+    console.log("\n\x1B[32mWhat do you want to do?\x1B[0m\n\x1B[33m[1] \x1B[0mTranslate commands from input.\n\x1B[33m[2] \x1B[0mTranslate commands from files/folders\n\x1B[33m[3] \x1B[0mGet help of command line arguments.\n\x1B[33m[4] \x1B[0mChange transformation version.\n\x1B[32mEnter the number between '[]' to continue.")
     let cont = readlineSync.question("\x1B[34mINPUT> \x1B[33m")
     if (cont == '1') {
         console.log("\x1B[32mPlease enter the command below: ")
@@ -146,6 +167,12 @@ if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c"
         argvs.push(cmd)
     } else if (cont == '3') {
         argvs.push("-h")
+    } else if (cont == '4') {
+        console.log("\x1B[32mPlease enter the version you want to transform.\nSupported versions: \x1B[33m" + JSON.stringify(SUPPORTED_VERSION))
+        argvs.push("-v")
+        let version = readlineSync.question("\x1B[35mVERSION> \x1B[33m")
+        argvs.push(version)
+        ci_dialog();
     } else if (cont == '2') {
         console.log("\x1B[32mPlease enter the file or folder path below: ")
         let inputFile = readlineSync.questionPath("\x1B[35mINPUT FILE/FOLDER> \x1B[33m")
@@ -154,13 +181,29 @@ if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c"
         argvs.push("-i")
         argvs.push(inputFile)
         argvs.push(outputFile)
-        if(overwrite) argvs.push("-y")
+        if (overwrite) argvs.push("-y")
 
     }
     console.log('\x1B[0m')
 }
+if (argvs.indexOf("-i") == -1 && argvs.indexOf("-h") == -1 && argvs.indexOf("-c") == -1) {
+    ci_dialog();
+}
 while (i < argvs.length) {
     let arg = argvs[i];
+    if (arg == '-v') {
+        i++;
+        if (i < argvs.length) {
+            let version = (argvs[i].trim());
+            if (SUPPORTED_VERSION.indexOf(version) == -1) {
+                console.error("Not supported transformation version: " + version);
+                // break;
+            }else{
+                console.log("Change transformation version to: " + version);
+                transform_version = version;
+            }
+        }
+    }
     if (arg == '-h') {
         console.log(HELP_CONTENT);
         return;

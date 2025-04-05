@@ -12,8 +12,20 @@
                     "name": "minecraft:potion",
                     "functions": [
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"speed\",duration:600,amplifier:1b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "speed",
+                                            "duration": 600,
+                                            "amplifier": 1,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         {
                             "function": "minecraft:set_count",
@@ -51,8 +63,20 @@
                     "name": "minecraft:potion",
                     "functions": [
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"jump_boost\",duration:600,amplifier:1b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "jump_boost",
+                                            "duration": 600,
+                                            "amplifier": 1,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         {
                             "function": "minecraft:set_count",
@@ -94,8 +118,20 @@
                             "count": 1
                         },
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"invisibility\",duration:300,amplifier:1b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "invisibility",
+                                            "duration": 300,
+                                            "amplifier": 1,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     ],
                     "conditions": [
@@ -115,8 +151,20 @@
                     "name": "minecraft:lingering_potion",
                     "functions": [
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"slowness\",duration:200,amplifier:127b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "slowness",
+                                            "duration": 200,
+                                            "amplifier": 127,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         {
                             "function": "minecraft:set_count",
@@ -150,8 +198,20 @@
                     "name": "minecraft:lingering_potion",
                     "functions": [
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"mining_fatigue\",duration:200,amplifier:127b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "mining_fatigue",
+                                            "duration": 200,
+                                            "amplifier": 127,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         {
                             "function": "minecraft:set_count",
@@ -199,8 +259,20 @@
                             ]
                         },
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{custom_potion_effects:[{id:\"blindness\",duration:200,amplifier:127b,ambient:0b,show_particles:0b}]}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:potion_contents": {
+                                    "custom_effects": [
+                                        {
+                                            "id": "blindness",
+                                            "duration": 200,
+                                            "amplifier": 127,
+                                            "ambient": false,
+                                            "show_particles": false
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     ],
                     "conditions": [
@@ -221,8 +293,21 @@
                     "name": "minecraft:stick",
                     "functions": [
                         {
-                            "function": "minecraft:set_nbt",
-                            "tag": "{Enchantments:[{id:\"knockback\",lvl:2b}],display:{Name:'\"\\\\u00a7a击退棍\"',Lore:['\"\\\\u00a7eKnockback LV.2\"']},HideFlag:63}"
+                            "function": "set_components",
+                            "components": {
+                                "minecraft:enchantments": {
+                                    "levels": {
+                                        "minecraft:knockback": 2
+                                    }
+                                },
+                                "minecraft:custom_name": "\"\\u00a7a击退棍\"",
+                                "minecraft:lore": [
+                                    "\"\\u00a7eKnockback LV.2\""
+                                ],
+                                "minecraft:custom_data": {
+                                    "HideFlag": 63
+                                }
+                            }
                         }
                     ]
                 }

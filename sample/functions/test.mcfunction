@@ -1,1 +1,1 @@
-particle minecraft:item minecraft:carrot ~ ~ ~
+execute if score temp board matches ..63 run summon item ~ ~ ~ {Item:{id:"minecraft:iron_ingot",count:1,components:{"minecraft:can_break":{predicates:[{blocks:"#minecraft:bedblocks"}],show_in_tooltip:false},"minecraft:can_place_on":{predicates:[{blocks:"#minecraft:bwplace"}],show_in_tooltip:false}}}}

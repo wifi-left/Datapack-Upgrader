@@ -1,7 +1,7 @@
-const { writeLine, writeDebugLine } = require("./inputSystem.js");
-const { ERROR_MESSAGES } = require("./ErrorMessages.js");
-const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, toItemText, deleteNameSpace, toSelectorText } = require("./mccommand.js");
-const { NBTools, getNbtContent, warpKey } = require("./NBTool.js");
+const { writeLine, writeDebugLine } = require("../inputSystem.js");
+const { ERROR_MESSAGES } = require("../ErrorMessages.js");
+const { defaultOrValue, parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, toItemText, deleteNameSpace, toSelectorText } = require("../mccommand.js");
+const { NBTools, getNbtContent, warpKey } = require("../NBTool.js");
 
 const ENCHANTMENTS_TRANSFORMATION = { "sweeping": "sweeping_edge", "minecraft:sweeping": "minecraft:sweeping_edge" }
 const ARRTIBUTEOPERATION_TRANSFORMATION = { "0": "add_value", "1": "add_multiplied_base", "2": "add_multiplied_total" }

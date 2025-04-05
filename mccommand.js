@@ -82,7 +82,7 @@ function splitText(text, separator) {
     cmds.push(tempStr);
     return cmds;
 }
-function parseValues(text, separator, equalsChar, array = false) {
+function parseValues(text, separator, equalsChar, array = false, valueAsNbt = false) {
     var stack = [];
     var tempStr = '';
     var cmds = {};
@@ -166,6 +166,12 @@ function parseValues(text, separator, equalsChar, array = false) {
         if (!array)
             cmds[keyName] = tempStr;
         else cmds.push({ key: keyName, value: tempStr });
+    }
+    if (valueAsNbt) {
+        for (let i in cmds) {
+            cmds[i] = NBTools.ParseNBT(cmds[i]);
+            // console.log(cmds[i])
+        }
     }
     return cmds;
 }
@@ -296,15 +302,16 @@ function parseBlockArg(Block) {
 function parseComponents(components) {
     if (components == "" || components == null) return null;
     if (components.startsWith("[") && components.endsWith("]")) {
-        components = components.substring(1, components.length - 1);
+        components = (components.substring(1, components.length - 1));
     }
-    return parseValues(components, ",", "=");
+    // console.log(components)
+    return parseValues(components, ",", "=", false, true);
 }
 function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
     let components = "";
     if (selectorObj.components != null) {
-        if(Array.isArray(selectorObj.components)){
+        if (Array.isArray(selectorObj.components)) {
             for (let i in selectorObj.components) {
                 let key = selectorObj.components[i].key;
                 let b = selectorObj.components[i].value;
@@ -312,7 +319,7 @@ function toSelectorText(selectorObj, splitChar = '=') {
                     components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(b)}`;
                 else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(b)}`;
             }
-        }else{
+        } else {
             for (let key in selectorObj.components) {
                 let b = selectorObj.components[key];
                 if (typeof b === 'object')
@@ -320,7 +327,7 @@ function toSelectorText(selectorObj, splitChar = '=') {
                 else components += (components == "" ? "" : ",") + `${key}${splitChar}${warpComponentValue(selectorObj.components[key])}`;
             }
         }
-        
+
         components = `[${components}]`
     }
 

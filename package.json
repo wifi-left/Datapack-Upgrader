@@ -1,15 +1,21 @@
 {
   "name": "datapackupdater",
-  "version": "1.0.1",
-  "description": "Upgrade your datapack from 1.20.4 to 1.20.5",
+  "version": "1.0.2",
+  "description": "Upgrade your datapack from older version to newwer version",
   "main": "index.js",
   "scripts": {
     "test": "npm install && node index.js -debug -i sample debug -y",
-    "test2": "npm install && node index.js -debug -i \"sample/functions/test.mcfunction\" \"debug/functions/test_result.mcfunction\" -y",
+    "test2": "node index.js -debug -v 1.21.4 -i \"sample/functions\" \"debug/functions\" -y",
     "run": "node index.js",
     "help": "node index.js -h",
-    "ui": "node index.js -debug"
+    "debug": "node index.js -debug"
   },
+  "bin":{
+    "mccmdupdater":"./index.js"
+  },
+  "files": [
+    "*.js"
+  ],
   "author": "wifi_left",
   "license": "ISC",
   "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
