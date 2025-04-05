@@ -762,19 +762,51 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['FireworksItem'] = transformEntityItemTag(tag['FireworksItem']);
     }
     if (tag['ArmorItems'] != undefined) {
-
+        let position = ["feet", "legs", "chest", "head"]
+        if (tag['equipment'] == null)
+            tag['equipment'] = {}
         for (let i in tag['ArmorItems']) {
-            tag['ArmorItems'][i] = transformEntityItemTag(tag['ArmorItems'][i]);
+            if (tag['ArmorItems'][i] != null) if (JSON.stringify(tag['ArmorItems'][i]) != "{}")
+                tag['equipment'][position[i]] = transformEntityItemTag(tag['ArmorItems'][i]);
         }
+        delete tag['ArmorItems'];
     }
     if (tag['DecorItem'] != undefined) {
         tag['DecorItem'] = transformEntityItemTag(tag['DecorItem']);
     }
     if (tag['HandItems'] != undefined) {
+        let position = ["mainhand", "offhand"]
+        if (tag['equipment'] == null)
+            tag['equipment'] = {}
         for (let i in tag['HandItems']) {
-            tag['HandItems'][i] = transformEntityItemTag(tag['HandItems'][i]);
+            if (tag['HandItems'][i] != null) if (JSON.stringify(tag['HandItems'][i]) != "{}")
+                tag['equipment'][position[i]] = transformEntityItemTag(tag['HandItems'][i]);
         }
+        delete tag['HandItems'];
     }
+    if (tag['ArmorDropChances']) {
+        let position = ["feet", "legs", "chest", "head"]
+
+        if (tag['drop_chances'] == null)
+            tag['drop_chances'] = {}
+        for (let i in tag['ArmorDropChances']) {
+            if (tag['ArmorDropChances'][i] != null) if (JSON.stringify(tag['ArmorDropChances'][i]) != "{}")
+                tag['drop_chances'][position[i]] = (tag['ArmorDropChances'][i]);
+        }
+        delete tag['ArmorDropChances'];
+    }
+    if (tag['HandDropChances']) {
+        let position = ["mainhand", "offhand"]
+
+        if (tag['drop_chances'] == null)
+            tag['drop_chances'] = {}
+        for (let i in tag['HandDropChances']) {
+            if (tag['HandDropChances'][i] != null) if (JSON.stringify(tag['HandDropChances'][i]) != "{}")
+                tag['drop_chances'][position[i]] = (tag['HandDropChances'][i]);
+        }
+        delete tag['HandDropChances'];
+    }
+
     if (tag['CustomName'] != undefined) {
         tag['CustomName'] = NBTStringParse(tag['CustomName']);
     }
@@ -833,6 +865,7 @@ function hideComponentsInTooltip(components, key) {
         components['minecraft:tooltip_display']["hidden_components"].push(key);
 }
 function NBTStringParse(text) {
+    if (typeof text == 'object') return text;
     let res = "";
     if (text.startsWith("'")) {
         text = text.replaceAll('"', "\\\"");
