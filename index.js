@@ -297,6 +297,7 @@ function warpComponentValue(key) {
 function warpKey(key, isData=false) {
     if(isData){
         if(key.startsWith('"')) return key;
+        if(key.startsWith('\'')) return key;
     }
     if (typeof key !== 'string')
         throw new SyntaxError("Argument is not a String");
