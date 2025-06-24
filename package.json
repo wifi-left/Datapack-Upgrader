@@ -8,10 +8,11 @@
     "test2": "node index.js -debug -v 1.21.4 -i \"sample/functions\" \"debug/functions\" -y",
     "run": "node index.js",
     "help": "node index.js -h",
-    "debug": "node index.js -debug"
+    "debug": "node index.js -debug",
+    "build_web": "sh ./build_web.sh"
   },
-  "bin":{
-    "mccmdupdater":"./index.js"
+  "bin": {
+    "mccmdupdater": "./index.js"
   },
   "files": [
     "*.js"
@@ -21,5 +22,8 @@
   "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
   "dependencies": {
     "readline-sync": "^1.4.10"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.1"
   }
 }

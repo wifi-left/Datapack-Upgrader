@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <title>文本处理工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Consolas', 'Courier New', monospace;
+            margin: 0;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            width:calc(100% - 32px);
+            margin: 40px auto;
+            background: #23272e;
+            border-radius: 8px;
+            box-shadow: 0 4px 24px #0008;
+            padding: 32px 32px 24px 32px;
+            border: 1px solid #333;
+        }
+
+        h2 {
+            color: #d7ba7d;
+            font-weight: 400;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 15px;
+            padding: 12px;
+            resize: vertical;
+            outline: none;
+            transition: border 0.2s;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            border: 1.5px solid #3794ff;
+            background: #23272e;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 16px;
+            min-height: 100px;
+            margin-top: 20px;
+            overflow-y: auto;
+            max-height: 300px;
+            box-shadow: 0 2px 8px #0004;
+        }
+
+        button {
+            margin-top: 18px;
+            background: linear-gradient(90deg, #0e639c 60%, #1177bb 100%);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 28px;
+            font-size: 15px;
+            font-family: 'Segoe UI', monospace;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #0002;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover,
+        button:focus {
+            background: linear-gradient(90deg, #1177bb 60%, #3794ff 100%);
+            box-shadow: 0 4px 16px #3794ff33;
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                padding: 16px 4vw 12px 4vw;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Upgrade Your Datapack Commands</h2>
+        <textarea id="input" placeholder="Put your commands here."></textarea>
+        <br>
+        <button id="process_1">Process (1.20.4->1.20.6)</button>
+        <button id="process_2">Process (1.21.3->1.21.4)</button>
+        <div id="output"></div>
+        <div id="debug"></div>
+    </div>
+    <script src="./index.js"></script>
+</body>
+
+</html>
+</div>
