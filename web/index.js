@@ -12,7 +12,7 @@ document.getElementById("process_2").onclick = function () {
 }
 function processText(is_1_21_4) {
     if (is_1_21_4) {
-        document.getElementById("output").innerText = "# Version: 1.21.3->1.21.4";
+        document.getElementById("output").innerText = "# Version: 1.21.4->1.21.5";
         transform_version = "1.21.4";
     } else {
         document.getElementById("output").innerText = "# Version: 1.20.4->1.20.6";
