@@ -38,4 +38,5 @@ function transformCommand(transform_version, cmd) {
     }
     return cmd;
 }
+document.getElementById("package-info").innerHTML = "v" + package.version + " by " + package.author + "<br/>Download CLI version and report bugs on <a target='_blank' href='" + package.homepage+"'>GitHub</a>";
 module.exports = { transformCommand }

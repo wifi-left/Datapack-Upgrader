@@ -32,6 +32,12 @@
             margin-bottom: 24px;
             letter-spacing: 1px;
         }
+        h4 {
+            color: #867e6b;
+            font-weight: 400;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
 
         textarea {
             width: 100%;
@@ -94,13 +100,21 @@
                 padding: 16px 4vw 12px 4vw;
             }
         }
+        a{
+            color:rgb(2, 122, 192);
+            text-decoration: underline;
+            font-weight: bold;
+        }
+        a:focus{
+            text-decoration: none;
+        }
     </style>
 </head>
 
 <body>
-
     <div class="container">
         <h2>Upgrade Your Datapack Commands</h2>
+        <h4 id="package-info">Author: wifi_left</h4>
         <textarea id="input" placeholder="Put your commands here."></textarea>
         <br>
         <button id="process_1">Process (1.20.4->1.20.6)</button>
