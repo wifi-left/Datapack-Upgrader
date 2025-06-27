@@ -425,6 +425,7 @@ function transformCommand(transform_version, cmd) {
     }
     return cmd;
 }
+document.getElementById("package-info").innerHTML = "v" + package.version + " by " + package.author + "<br/>Download CLI version and report bugs on <a target='_blank' href='" + package.homepage+"'>GitHub</a>";
 module.exports = { transformCommand }
 
 },{"./inputSystem.js":5,"./package.json":7,"./transformations/transformation_1_20.js":8,"./transformations/transformation_1_21_4.js":9}],5:[function(require,module,exports){
