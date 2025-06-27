@@ -266,8 +266,10 @@ function getNbtType(nbttext) {
     } else if (nbttext.startsWith("'")) {
         return 'string';
     }
-    if (nbttext.length <= 1) return "string";
-    if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') return 'string';
+    if (nbttext.length > 2)
+        if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') {
+            return 'string';
+        }
     switch (nbttext[nbttext.length - 1]) {
         case 'b':
         case 'B':
@@ -294,13 +296,16 @@ function getNbtType(nbttext) {
 function warpComponentValue(key) {
     return key;
 }
-function warpKey(key, isData=false) {
-    if(isData){
-        if(key.startsWith('"')) return key;
-        if(key.startsWith('\'')) return key;
+function warpKey(key, isData = false) {
+    if (isData) {
+        if (key.startsWith('"')) return key;
+        if (key.startsWith('\'')) return key;
     }
     if (typeof key !== 'string')
         throw new SyntaxError("Argument is not a String");
+    if (key.length <= 1) {
+        return JSON.stringify(key)
+    }
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
     if (regu.test(key)) {
         return key;
