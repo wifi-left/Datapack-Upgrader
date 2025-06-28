@@ -819,7 +819,7 @@ module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, 
 },{"./NBTool.js":3}],7:[function(require,module,exports){
 module.exports={
   "name": "datapackupdater",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Upgrade your datapack from older version to newwer version",
   "main": "index.js",
   "scripts": {
@@ -841,9 +841,6 @@ module.exports={
   "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
   "dependencies": {
     "readline-sync": "^1.4.10"
-  },
-  "devDependencies": {
-    "browserify": "^17.0.1"
   }
 }
 },{}],8:[function(require,module,exports){
