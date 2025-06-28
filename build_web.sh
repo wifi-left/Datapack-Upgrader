@@ -8,5 +8,7 @@ cp "./mccommand.js" "./build/web/mccommand.js" -f
 cp "./ErrorMessages.js" "./build/web/ErrorMessages.js" -f
 cp "./package.json" "./build/web/package.json" -f
 cp "./web/" "./build/" -f -r
+cp "./tools/" "./build/web" -f -r
 cp "./build/web/index.html" "./build/web/public/index.html" -f -r
+cp "./favicon.ico" "./build/web/public/favicon.ico" -f -r
 npx browserify "build/web/index.js" -o "build/web/public/index.js"
