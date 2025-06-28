@@ -393,10 +393,10 @@ const { writeDebugLine, writeLine } = require("./inputSystem.js");
 
 var transform_version = "1.20";
 document.getElementById("process_1").onclick = function () {
-    processText(0);
+    processText(1);
 }
 document.getElementById("process_2").onclick = function () {
-    processText(1);
+    processText(0);
 }
 document.getElementById("process_3").onclick = function () {
     processText(2);
