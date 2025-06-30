@@ -1,2 +1,3 @@
 # give @s coal[enchantments={levels:{sharpness:1},show_in_tooltip:false}]
-give @p minecraft:iron_pickaxe{Enchantments:[{id:sharpness,lvl:-1}]}
+# give @p minecraft:iron_pickaxe{Enchantments:[{id:sharpness,lvl:-1}]}
+give @p mace[custom_name='["",{"text":"骨钉","italic":false,"color":"aqua"}]',lore=['["",{"text":"下落一段距离后","italic":false}]','["",{"text":"下劈可获得","italic":false},{"text":"垂直","italic":false,"color":"red"},{"text":"速度","italic":false}]'],enchantments={levels:{wind_burst:1}},unbreakable={},use_cooldown={seconds:0.1}]

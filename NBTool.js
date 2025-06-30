@@ -23,10 +23,10 @@ function getNbtContent(nbttext) {
         return (nbttext.substring(1, nbttext.length - 1).replaceAll("\\\\", "\\"));
     }
     if (nbttext.length <= 1) return nbttext;
-    if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') {
-        if ('0' > nbttext[nbttext.length - 1] || nbttext[nbttext.length - 2] > '9')
-            return nbttext;
-    }
+
+    if ('0' > nbttext[0] || nbttext[0] > '9')
+        return nbttext;
+
     switch (nbttext[nbttext.length - 1]) {
         case 's':
         case 'S':
@@ -74,7 +74,7 @@ function getNbtType(nbttext) {
         return 'string';
     }
     if (nbttext.length > 2)
-        if ('0' > nbttext[nbttext.length - 2] || nbttext[nbttext.length - 2] > '9') {
+        if ('0' > nbttext[0] || nbttext[0] > '9') {
             return 'string';
         }
     switch (nbttext[nbttext.length - 1]) {
