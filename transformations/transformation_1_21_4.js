@@ -12,6 +12,7 @@ function transformId(array, id) {
 
 function transformTellraw(text, fallback = "") {
     let d = text;
+
     try {
         d = JSON.parse(d);
     } catch (e) {
@@ -743,7 +744,7 @@ function transformBlockTags(tag) {
         tag['Items'] = transformBlockItemTag(tag['Items']);
     }
     if (tag['CustomName'] != undefined) {
-        tag['CustomName'] = NBTStringParse(tag['CustomName']);
+        tag['CustomName'] = JSON.parse(NBTStringParse(tag['CustomName']));
     }
     // if(tag[''])
     // if (tag['FlowerPos'] != undefined) {
@@ -808,10 +809,10 @@ function transformEntityTags(tag, entityId = undefined) {
     }
 
     if (tag['CustomName'] != undefined) {
-        tag['CustomName'] = NBTStringParse(tag['CustomName']);
+        tag['CustomName'] = JSON.parse(NBTStringParse(tag['CustomName']));
     }
     if (tag['text'] != undefined) {
-        tag['text'] = NBTStringParse(tag['text']);
+        tag['text'] = JSON.parse(NBTStringParse(tag['text']));
     }
 
     // if (tag['FlowerPos'] != undefined) {
@@ -867,6 +868,7 @@ function hideComponentsInTooltip(components, key) {
 function NBTStringParse(text) {
     if (typeof text == 'object') return text;
     let res = "";
+
     if (text.startsWith("'")) {
         text = text.replaceAll('"', "\\\"");
         res = transformTellraw(JSON.parse('"' + text.substring(1, text.length - 1) + '"'));
@@ -891,12 +893,12 @@ function transformItemTags(tag, itemId = undefined) {
         switch (simplestKey) {
             case 'custom_name':
             case 'item_name':
-                components[key] = NBTStringParse(tag[key]);
+                components[key] = JSON.parse(NBTStringParse(tag[key]));
                 break;
             case 'lore':
                 components[key] = [];
                 for (let i = 0; i < tag[key].length; i++) {
-                    components[key][i] = NBTStringParse(tag[key][i]);
+                    components[key][i] = JSON.parse(NBTStringParse(tag[key][i]));
                 }
                 break;
             case 'attribute_modifiers':
