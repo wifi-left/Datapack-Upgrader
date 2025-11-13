@@ -2165,7 +2165,7 @@ function transformItemTags(tag, itemId = undefined) {
                     let flicker = defaultOrValue(fireworkEffect['Flicker'], false);
                     let trail = defaultOrValue(fireworkEffect['Trail'], false);
                     let type = transformId(FIREWORK_TRANSFORMATION, defaultOrValue(fireworkEffect['Type'], 0));
-                    let fireworkEffectNew = { shape: type, color: color, fade_colors: fade_color, has_trail: trail, has_twinkle: flicker }
+                    let fireworkEffectNew = { shape: type, colors: color, fade_colors: fade_color, has_trail: trail, has_twinkle: flicker }
                     components['fireworks']['explosions'].push(fireworkEffectNew);
                 }
                 break;
