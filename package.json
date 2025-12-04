@@ -1,11 +1,14 @@
 {
   "name": "datapackupdater",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Upgrade your datapack from older version to newwer version",
   "main": "index.js",
   "scripts": {
-    "test": "npm install && node index.js -debug -i sample debug -y",
-    "test2": "node index.js -debug -v 1.21.4 -i \"sample/functions\" \"debug/functions\" -y",
+    "test": "npm install && node index.js -debug -i sample/updater_1_20 debug -y",
+    "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug\" -y",
+    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
+    "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
+    "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",
     "help": "node index.js -h",
     "debug": "node index.js -debug",
@@ -21,6 +24,7 @@
   "license": "ISC",
   "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
   "dependencies": {
+    "graceful-fs": "^4.2.11",
     "readline-sync": "^1.4.10"
   }
 }

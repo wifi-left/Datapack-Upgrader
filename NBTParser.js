@@ -171,11 +171,7 @@ function NBTParser(str) {
         return parseArray();
     } else {
         if (str == "") return str;
-        try {
-            return JSON.parse(str);
-        } catch (e) {
-            return str;
-        }
+        return str;
     }
 }
 module.exports = { NBTParser }

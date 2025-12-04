@@ -22,7 +22,7 @@ function transformJSON(cmd) {
     }
     return cmd;
 }
-const fs = require("fs");
+const fs = require("graceful-fs");
 const package = require("./package.json")
 const pathLib = require('path')
 const readline = require('readline');
@@ -38,17 +38,23 @@ process.on('SIGINT', () => {
 
 
 function listFile(dir) {
+    writeDebugLine("# DEBUG: Reading Folder " + dir);
     let arr = fs.readdirSync(dir);
     let list = [];
+    let folderlist = [];
     arr.forEach(function (item) {
         var fullpath = pathLib.join(dir, item);
         var stats = fs.statSync(fullpath);
         if (stats.isDirectory()) {
-            list = list.concat(listFile(fullpath));
+            // list = list.concat(listFile(fullpath));
+            folderlist.push(fullpath)
         } else {
             list.push(fullpath);
         }
     });
+    for (let i = 0; i < folderlist.length; i++) {
+        list = list.concat(listFile(folderlist[i]));
+    }
     return list;
 }
 
@@ -84,8 +90,23 @@ function transformFile(input, output, overwrite = false) {
             writeLine("## If you encounter a problem, make an issue on " + package.homepage)
             writeLine("## ")
             let arrs = content.replaceAll("\r", "").split("\n");
-            for (let j = 0; j < arrs.length; j++)
-                writeLine(transformCommand(arrs[j].trim()));
+            for (let j = 0; j < arrs.length; j++) {
+                let cmd = arrs[j].trim();
+                while (cmd.endsWith("\\")) {
+                    cmd = cmd.substring(0, cmd.length - 1)
+                    j++;
+                    if (j >= arrs.length) {
+                        throw new Error("Wrong '\\' at the end of the file.")
+                    }
+                    cmd += arrs[j].trim();
+                }
+                Settings.nowLine = j;
+                Settings.nowFile = input;
+                Settings.hasLog = false
+                // Settings.beforeLog_once = "#!#[file=" + JSON.stringify(pathLib.basename(input)) + ",line=" + j + "]" + "\r\n";
+                writeLine(transformCommand(cmd.trim()));
+            }
+            // writeLine(transformCommand(arrs[j].trim()));
             return;
         } catch (e) {
             writeDebugLine(e);
@@ -99,6 +120,7 @@ function transformFile(input, output, overwrite = false) {
 }
 function transformFolder(dir, output, overwrite = false) {
     Settings.warningMessages = "";
+    Settings.warningMessagesRaw = "";
     dir = dir.replaceAll("\\", "/");
     output = output.replaceAll("\\", "/");
     writeDebugLine(`## Reading the folder ${dir}...`);
@@ -137,9 +159,12 @@ function transformFolder(dir, output, overwrite = false) {
         process.stdout.write(cmdText, 'utf-8');
 
     }
+    let outputLogFile = output + "datapack_updater.log";
+    if (!fs.existsSync(pathLib.dirname(outputLogFile))) fs.mkdirSync(pathLib.dirname(outputLogFile), { recursive: true });
+    fs.writeFileSync(outputLogFile, Settings.warningMessagesRaw);
 
-    process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\n", 'utf-8');
-    console.log("\n" + Settings.warningMessages + `\nTotal: ${Settings.warningMessages.split("\n").length - 1} Warnings/Errors`);
+    process.stdout.write("Transforming: 100.00% █████████████████████████ " + files.length + "/" + files.length + "  Transforming Completed!\nLog saved to " + outputLogFile, 'utf-8');
+
 }
 const HELP_CONTENT = `
 Command Arguments:
@@ -198,7 +223,7 @@ while (i < argvs.length) {
             if (SUPPORTED_VERSION.indexOf(version) == -1) {
                 console.error("Not supported transformation version: " + version);
                 // break;
-            }else{
+            } else {
                 console.log("Change transformation version to: " + version);
                 transform_version = version;
             }
@@ -278,4 +303,6 @@ while (i < argvs.length) {
 if (Settings.OutputFile != null) {
     Settings.OutputFile.end();
 }
-
+if (Settings.warningMessages != null) {
+    console.log("\n" + Settings.warningMessages + `\nTotal: ${Settings.warningMessages.split("\n").length - 1} Warnings/Errors`);
+}

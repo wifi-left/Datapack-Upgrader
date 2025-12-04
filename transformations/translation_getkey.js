@@ -10,7 +10,7 @@ function transformId(array, id) {
     return res;
 }
 
-function transformTellraw(text, fallback = "") {
+function transformTellraw(text, fallback = "\"\"") {
     let d = text;
 
     try {
@@ -21,50 +21,52 @@ function transformTellraw(text, fallback = "") {
     return JSON.stringify(transformRawMsg(d));
 }
 function transformClickEvent(data) {
-    if (data['action'] == 'run_command' || data['action'] == 'suggest_command') {
-        data['command'] = transformCommand(data['value']);
-        delete data['value'];
-    } else if (data['action'] == 'open_url') {
-        data['url'] = data['value'];
-        delete data['value'];
-    } else if (data['action'] == 'change_page') {
-        data['page'] = parseInt(data['value']);
-        delete data['value'];
+    if (data['action'] == 'run_command') {
+        data['command'] = transformCommand(data['command']);
     }
     return data;
 }
 function transformHoverEvent(data) {
     if (data['action'] == 'show_text') {
         if (data['contents'] != null) {
-            if (data['value'] == null) {
-                data['value'] = data['contents'];
-                delete data['contents'];
-            }
+            data['value'] = transformRawMsg(data['value']);
         }
     }
     return data;
-
+}
+function transformText(text) {
+    if (text == null) return;
+    if ((text + "") == '##!##FLAG##!##') return;
+    if ((text + "").trim() != "")
+        writeLine(JSON.stringify(text) + "=");
 }
 function transformRawMsg(data) {
+    if (data == null) return "";
+    if (data == "##!##FLAG##!##") return "";
     if (Array.isArray(data)) {
         for (let i = 0; i < data.length; i++) {
             transformRawMsg(data[i]);
         }
         return data;
     } else if (typeof data === 'object') {
-        if (data['clickEvent'] != null) {
-            data['click_event'] = transformClickEvent(data['clickEvent']);
-            delete data['clickEvent'];
+        if (data['click_event'] != null) {
+            data['click_event'] = transformClickEvent(data['click_event']);
         }
-        if (data['hoverEvent'] != null) {
-            data['hover_event'] = transformHoverEvent(data['hoverEvent']);
-            delete data['hoverEvent'];
+        if (data['hover_event'] != null) {
+            data['hover_event'] = transformHoverEvent(data['hover_event']);
         }
         if (data['extra'] != null) {
             transformRawMsg(data['extra']);
         }
+        if (data['selector'] != null) {
+            data['selector'] = transformSelector(data['selector']);
+        }
+        if (data['text'] != null) {
+            data['text'] = transformText(data['text']);
+        }
         return data;
     } else {
+        data = transformText(data);
         return (data);
     }
 }
@@ -269,7 +271,7 @@ function transformDataPathWithArgs(path, type, data) {
     return { path: path, data: data };
 }
 function transformDataPath(path, type) {
-    let data = "FLAG";
+    let data = "##!##FLAG##!##";
     if (path.startsWith("{")) {
         switch (type) {
             case 'block':
@@ -517,7 +519,7 @@ function transformCommand(command) {
                                     return command;
                                 }
                                 dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
-                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                ress = transformDataPathWithArgs(path, tresult.type, "##!##FLAG##!##");
                                 writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
                                 res += ` ${ress.path} ${controlType} ${fromType} ${(dresult.result)}`;
 
@@ -536,7 +538,7 @@ function transformCommand(command) {
                                     return command;
                                 }
                                 dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
-                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                ress = transformDataPathWithArgs(path, tresult.type, "##!##FLAG##!##");
                                 writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
                                 res += ` ${ress.path} ${controlType} ${insertIdx} ${fromType} ${(dresult.result)}`;
                                 break;
@@ -554,7 +556,7 @@ function transformCommand(command) {
                                     return command;
                                 }
                                 dresult = dealWithDataCommandArgWithoutArgs(comArgs, ++i);
-                                ress = transformDataPathWithArgs(path, tresult.type, "FLAG");
+                                ress = transformDataPathWithArgs(path, tresult.type, "##!##FLAG##!##");
                                 writeLine(ERROR_MESSAGES.WARNING_MAY_CAUSE_PROBLEM)
                                 res += ` ${ress.path} ${controlType} ${fromType} ${(dresult.result)}`;
                                 break;
@@ -637,6 +639,19 @@ function transformCommand(command) {
                 let selector = transformSelector(comArgs[1]);
                 let text = transformTellraw(comArgs[2]);
                 return `${cmdRoot} ${selector} ${text}`;
+                break;
+            case 'title':
+                let selectort = transformSelector(comArgs[1]);
+                let ttype = comArgs[2];
+                switch (ttype) {
+                    case 'title':
+                    case 'subtitle':
+                    case 'actionbar':
+                        let textt = transformTellraw(comArgs[3]);
+                        return `${cmdRoot} ${selectort} ${ttype} ${textt}`;
+                    default:
+                        return command;
+                }
                 break;
             case 'item':
                 if (comArgs.length <= 2) {
@@ -755,7 +770,10 @@ function transformBlockItemTag(blockItemArrays) {
 }
 function transformBlock(blockText) {
     let item = parseItemArg(blockText);
-    // console.log((item))
+    // console.log(NBTools.ToString(item.tags))
+    if (item.components != null) {
+        return blockText;
+    }
     if (item.tags != null) {
         let transformedTags = transformBlockTags(item.tags);
         item.tags = transformedTags;
@@ -765,11 +783,10 @@ function transformBlock(blockText) {
 function transformItem(itemText, splitChar = '=') {
     // console.log(itemText)
     let item = parseItemArg(itemText);
-
     // console.log(NBTools.ToString(item.tags))
     if (item.tags != null && item.tags != "") {
         // return itemText;
-        writeLine("## WARNING: Your commands shouldn't bring 'tags' in 1.21.4");
+        writeLine("## WARNING: Your commands shouldn't bring 'tags' in 1.20.5 and later");
     }
     if (item.components != null) {
         let transformedComponent = transformItemTags(item.components, item.id);
@@ -783,31 +800,23 @@ function transformBlockTags(tag) {
         tag['Items'] = transformBlockItemTag(tag['Items']);
     }
     if (tag['CustomName'] != undefined) {
-        tag['CustomName'] = transformRawMsg(NBTools.ParseNBT(NBTStringParse(tag['CustomName'])));
+        tag['CustomName'] = transformRawMsg(tag['CustomName']);
     }
+
     if (tag['front_text'] != undefined) {
         if (tag['front_text']['messages'] != undefined) {
             for (let i = 0; i < tag['front_text']['messages'].length; i++) {
-                tag['front_text']['messages'][i] = transformRawMsg(NBTools.ParseNBT(NBTStringParse(tag['front_text']['messages'][i])));
+                tag['front_text']['messages'][i] = transformRawMsg(tag['front_text']['messages'][i]);
             }
         }
     }
     if (tag['back_text'] != undefined) {
         if (tag['back_text']['messages'] != undefined) {
             for (let i = 0; i < tag['back_text']['messages'].length; i++) {
-                tag['back_text']['messages'][i] = transformRawMsg(NBTools.ParseNBT(NBTStringParse(tag['back_text']['messages'][i])));
+                tag['back_text']['messages'][i] = transformRawMsg(tag['back_text']['messages'][i]);
             }
         }
     }
-    // if(tag[''])
-    // if (tag['FlowerPos'] != undefined) {
-    //     tag['flower_pos'] = transformBlockItemTag(tag['FlowerPos']);
-    //     delete tag['FlowerPos'];
-    // }
-    // if (tag['ExitPortal'] != undefined) {
-    //     tag['exit_portal'] = transformBlockItemTag(tag['ExitPortal']);
-    //     delete tag['ExitPortal'];
-    // }
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
@@ -815,82 +824,21 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['FireworksItem'] != undefined) {
         tag['FireworksItem'] = transformEntityItemTag(tag['FireworksItem']);
     }
-    if (tag['ArmorItems'] != undefined) {
-        let position = ["feet", "legs", "chest", "head"]
-        if (tag['equipment'] == null)
-            tag['equipment'] = {}
-        for (let i in tag['ArmorItems']) {
-            if (tag['ArmorItems'][i] != null) if (JSON.stringify(tag['ArmorItems'][i]) != "{}")
-                tag['equipment'][position[i]] = transformEntityItemTag(tag['ArmorItems'][i]);
-        }
-        delete tag['ArmorItems'];
-    }
     if (tag['DecorItem'] != undefined) {
         tag['DecorItem'] = transformEntityItemTag(tag['DecorItem']);
     }
-    if (tag['HandItems'] != undefined) {
-        let position = ["mainhand", "offhand"]
-        if (tag['equipment'] == null)
-            tag['equipment'] = {}
-        for (let i in tag['HandItems']) {
-            if (tag['HandItems'][i] != null) if (JSON.stringify(tag['HandItems'][i]) != "{}")
-                tag['equipment'][position[i]] = transformEntityItemTag(tag['HandItems'][i]);
+    if (tag['equipment'] != undefined) {
+        for (let i in tag['equipment']) {
+            tag['equipment'][i] = transformEntityItemTag(tag['equipment'][i]);
         }
-        delete tag['HandItems'];
-    }
-    if (tag['ArmorDropChances']) {
-        let position = ["feet", "legs", "chest", "head"]
-
-        if (tag['drop_chances'] == null)
-            tag['drop_chances'] = {}
-        for (let i in tag['ArmorDropChances']) {
-            if (tag['ArmorDropChances'][i] != null) if (JSON.stringify(tag['ArmorDropChances'][i]) != "{}")
-                tag['drop_chances'][position[i]] = (tag['ArmorDropChances'][i]);
-        }
-        delete tag['ArmorDropChances'];
-    }
-    if (tag['HandDropChances']) {
-        let position = ["mainhand", "offhand"]
-
-        if (tag['drop_chances'] == null)
-            tag['drop_chances'] = {}
-        for (let i in tag['HandDropChances']) {
-            if (tag['HandDropChances'][i] != null) if (JSON.stringify(tag['HandDropChances'][i]) != "{}")
-                tag['drop_chances'][position[i]] = (tag['HandDropChances'][i]);
-        }
-        delete tag['HandDropChances'];
     }
 
     if (tag['CustomName'] != undefined) {
-        tag['CustomName'] = JSON.parse(NBTStringParse(tag['CustomName']));
-
-
+        tag['CustomName'] = transformRawMsg(tag['CustomName']);
     }
     if (tag['text'] != undefined) {
-        tag['text'] = JSON.parse(NBTStringParse(tag['text']));
+        tag['text'] = transformRawMsg(tag['text']);
     }
-
-    // if (tag['FlowerPos'] != undefined) {
-    //     tag['hive_pos'] = tag['FlowerPos'];
-    //     delete tag['FlowerPos'];
-    // }
-    // if (tag['HivePos'] != undefined) {
-    //     tag['flower_pos'] = tag['HivePos'];
-    //     delete tag['HivePos'];
-    // }
-
-    // if (tag['PatrolTarget'] != undefined) {
-    //     tag['patrol_target'] = tag['PatrolTarget'];
-    //     delete tag['PatrolTarget'];
-    // }
-    // if (tag['WanderTarget'] != undefined) {
-    //     tag['wander_target'] = tag['WanderTarget'];
-    //     delete tag['WanderTarget'];
-    // }
-    // if (tag['Leash'] != undefined) {
-    //     tag['leash'] = tag['Leash'];
-    //     delete tag['Leash'];
-    // }
     if (tag['Item'] != undefined) {
         tag['Item'] = transformEntityItemTag(tag['Item']);
     }
@@ -902,23 +850,6 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
     }
     return tag;
-}
-function hideComponentsInTooltip(components, key) {
-    if (components['minecraft:tooltip_display'] == null) {
-        components['minecraft:tooltip_display'] = { hidden_components: [] };
-    }
-    if (components['minecraft:tooltip_display']["hidden_components"] == null) {
-        components['minecraft:tooltip_display']["hidden_components"] = [];
-    }
-    if (key == 'hide_tooltip') {
-        components['minecraft:tooltip_display']['hide_tooltip'] = true;
-    }
-    if (Array.isArray(key)) {
-        for (let i = 0; i < key.length; i++) {
-            components['minecraft:tooltip_display']["hidden_components"].push(key[i]);
-        }
-    } else
-        components['minecraft:tooltip_display']["hidden_components"].push(key);
 }
 function NBTStringParse(text) {
     if (typeof text == 'object') return text;
@@ -948,71 +879,18 @@ function transformItemTags(tag, itemId = undefined) {
         switch (simplestKey) {
             case 'custom_name':
             case 'item_name':
-                components[key] = NBTools.ParseNBT(NBTStringParse(tag[key]));
+                components[simplestKey] = transformRawMsg((tag[key]));
                 break;
             case 'lore':
-                components[key] = [];
+                components[simplestKey] = [];
                 for (let i = 0; i < tag[key].length; i++) {
-                    components[key][i] = NBTools.ParseNBT(NBTStringParse(tag[key][i]));
+                    components[simplestKey][i] = transformRawMsg((tag[key][i]));
                 }
                 break;
-            case 'attribute_modifiers':
-                if (tag[key]['modifiers'] != null)
-                    components[key] = tag[key]['modifiers'];
-                if (tag[key]['show_in_tooltip'] == false) {
-                    hideComponentsInTooltip(components, key);
-                }
-                break;
-            case 'dyed_color':
-                if (tag[key]['rgb'] != null)
-                    components[key] = tag[key]['rgb'];
-                if (tag[key]['show_in_tooltip'] == false) {
-                    hideComponentsInTooltip(components, key);
-                }
-                break;
-            case 'enchantments':
-            case 'stored_enchantments':
-                if (tag[key]['levels'] != null)
-                    components[key] = tag[key]['levels'];
-                if (tag[key]['show_in_tooltip'] == false) {
-                    hideComponentsInTooltip(components, key);
-                }
-                break;
-            case 'trim':
-            case 'jukebox_playable':
-            case 'unbreakable':
-                if (tag[key]['show_in_tooltip'] == false) {
-                    hideComponentsInTooltip(components, key);
-                    delete tag[key]['show_in_tooltip'];
-                }
-                components[key] = tag[key];
-                break;
-            case 'weapon':
-                components['weapon'] = tag[key];
-                components["item_damage_per_attack"] = components["damage_per_attack"];
-                delete components["damage_per_attack"];
-                break;
-            case 'can_break':
-            case 'can_place_on':
-                if (tag[key]['predicates'] != null)
-                    components[key] = tag[key]['predicates'];
-                if (tag[key]['show_in_tooltip'] == false) {
-                    hideComponentsInTooltip(components, key);
-                }
-
-                break;
-            case 'hide_additional_tooltip':
-                hideComponentsInTooltip(components, ['potion_contents', 'potion_duration_scale']);
-                break;
-            case 'hide_tooltip':
-                hideComponentsInTooltip(components, "hide_tooltip");
-                break;
-            case 'fire_resistant':
-                writeLine("## WARNING: NOT SUPPORTED YET FOR '" + key + "'.")
             default:
                 // console.log(simplestKey)
                 if (components[key] === undefined) components[key] = {};
-                components[key] = tag[key];
+                components[simplestKey] = tag[key];
             // console.log(key)
             // Put it into custom_data
         }
@@ -1020,47 +898,4 @@ function transformItemTags(tag, itemId = undefined) {
 
     return components;
 }
-function modifyLootTableTree(data) {
-    for (let i in data) {
-        if (i === 'functions') {
-            let itemid = data['name'];
-            if (itemid == null) itemid = "air";
-            else itemid = itemid + "";
-            for (let j in data[i]) {
-                let functionType = data[i][j]['function'];
-                if (deleteNameSpace(functionType) == 'set_components') {
-                    let nbt = data[i][j]['components'];
-                    try {
-                        let components = transformItemTags(NBTools.ParseNBT(nbt), itemid);
-                        data[i][j]['components'] = {}
-                        for (let k in components) {
-                            data[i][j]['components'][k] = NBTools.ToJSON(components[k]);
-
-                        }
-                    } catch (e) {
-                        writeDebugLine(e);
-                    }
-
-                }
-            }
-        } else {
-            if (typeof data[i] === 'object')
-                modifyLootTableTree(data[i]);
-        }
-    }
-}
-function transformJSON(data) {
-    try {
-        let dat = JSON.parse(data);
-        if (dat['pools'] != null) {
-            modifyLootTableTree(dat['pools']);
-            return JSON.stringify(dat, null, "    ");
-        } else {
-            return data;
-        }
-    } catch (e) {
-        writeDebugLine(e);
-    }
-    return data;
-}
-module.exports = { transformId, transformJSON, transformCommand }
+module.exports = { transformId, transformCommand }

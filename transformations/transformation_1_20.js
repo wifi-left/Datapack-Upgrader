@@ -82,6 +82,10 @@ function transformJSON(data) {
 
 
 function toNbtTextFromPathAndData(path, data = "") {
+    // console.log(path)
+    if (path == null) return data;
+    if (path == "") return data;
+    if (path == "{}") return data;
     let text = path;
     let pathStack = [];
     var stack = [];
@@ -103,6 +107,25 @@ function toNbtTextFromPathAndData(path, data = "") {
                 else {
                     throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
+            } if (text[i] == '{') {
+                pathStack.push(tempStr)
+
+                tempStr = text[i];
+                // if (stack[stack.length-1] == '"') stack.pop()
+                stack.push('{');
+                for (i = i + 1; i < text.length && stack[stack.length - 1] == '{'; i++) {
+                    // console.log(tempStr)
+                    if (text[i] == '}') {
+                        tempStr += text[i]; stack.pop();
+                    } else if (text[i] == '{') {
+                        tempStr += text[i]; stack.push('{');
+                    } else {
+                        tempStr += text[i];
+                    }
+                }
+                pathStack.push(tempStr);
+                continue;
+
             } else if (text[i] == '.') {
                 if (tempStr != "") {
                     pathStack.push(tempStr);
@@ -129,17 +152,24 @@ function toNbtTextFromPathAndData(path, data = "") {
     if (tempStr != '') {
         pathStack.push(tempStr);
     }
+    // console.log(pathStack)
     let resObj = {};
     if (pathStack.length >= 1) {
         resObj = data;
         for (let i = pathStack.length - 1; i >= 0; i--) {
             let kname = pathStack[i];
+            if (kname == '') continue;
+            // console.log(kname)
             let newobj = JSON.parse(JSON.stringify(resObj));
+
             if (kname.startsWith('[')) {
                 kname = JSON.parse(kname);
                 let arr = [];
                 arr[kname[0]] = newobj;
                 resObj = arr;
+            } else if (kname.startsWith('{')) {
+                kname = NBTools.ParseNBT(kname);
+                resObj = kname;
             } else {
                 if (kname.startsWith('"')) {
                     kname = JSON.parse(kname);
@@ -149,12 +179,13 @@ function toNbtTextFromPathAndData(path, data = "") {
             }
 
         }
+        // console.log(resObj)
         return resObj;
     } else return data;
 
 }
 function getNbtPathAndContent(nbt) {
-
+    // console.log(nbt)
     let path = "", data;
     let nbtCache = nbt;
     if (typeof nbt === 'object') {
@@ -212,7 +243,7 @@ function getNbtPathAndContent(nbt) {
 
         }
     } else {
-        return nbt;
+        return { path: "", data: nbt };
     }
 }
 function transformDataPathWithArgs(path, type, data) {
@@ -234,6 +265,8 @@ function transformDataPathWithArgs(path, type, data) {
         if (result.path.startsWith(".")) {
             result.path = result.path.substring(1);
         }
+        if (result.path == "") result.path = "{}";
+        if (getNbtType(result.data) === 'string') data = warpKey(result.data);
         return result;
     } catch (e) {
         writeDebugLine(e);
@@ -245,6 +278,7 @@ function transformDataPathWithArgs(path, type, data) {
         }
 
     }
+    if (getNbtType(data) === 'string') data = warpKey(data);
     return { path: path, data: data };
 }
 function transformDataPath(path, type) {
@@ -260,6 +294,8 @@ function transformDataPath(path, type) {
                 return path;
         }
     } else {
+        let flag = false;
+        if (path.endsWith("}")) flag = true;
         try {
             let nbt = toNbtTextFromPathAndData(path, data);
             switch (type) {
@@ -273,6 +309,7 @@ function transformDataPath(path, type) {
                     writeLine("## WARNING: 'storage' will not be transformed because we don't know what to do with it.")
             }
             // console.log(nbt)
+            if (flag) return NBTools.ToString(nbt);
             let result = getNbtPathAndContent(nbt);
             if (result.path.startsWith(".")) {
                 result.path = result.path.substring(1);
@@ -349,6 +386,7 @@ function dealWithDataCommandArgWithoutArgs(comArgs, i) {
 }
 function transformCommand(command) {
     if (command == "") return "";
+    if (command.startsWith("#")) return command;
     let comArgs = [];
     try {
         comArgs = parseCommand(command);
@@ -505,6 +543,11 @@ function transformCommand(command) {
                 let type = comArgs[++i];
                 switch (type) {
                     case 'get':
+                        let fuck = dealWithDataCommandArgWithoutArgs(comArgs, ++i)
+                        i = fuck.offset;
+                        let mutiply = comArgs[++i];
+                        res += ` ${type} ${fuck.result}${(mutiply == "" || mutiply == null ? "" : " " + mutiply)}`;
+                        return res;
                     case 'remove':
                         res += ` ${type} ${dealWithDataCommandArgWithoutArgs(comArgs, ++i).result}`;
                         return res;
@@ -1276,7 +1319,7 @@ function transformItemTags(tag, itemId = undefined) {
                     let flicker = defaultOrValue(fireworkEffect['Flicker'], false);
                     let trail = defaultOrValue(fireworkEffect['Trail'], false);
                     let type = transformId(FIREWORK_TRANSFORMATION, defaultOrValue(fireworkEffect['Type'], 0));
-                    let fireworkEffectNew = { shape: type, colors: color, fade_colors: fade_color, has_trail: trail, has_twinkle: flicker }
+                    let fireworkEffectNew = { shape: type, color: color, fade_colors: fade_color, has_trail: trail, has_twinkle: flicker }
                     components['fireworks']['explosions'].push(fireworkEffectNew);
                 }
                 break;

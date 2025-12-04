@@ -1,0 +1,1 @@
+summon bat ~ ~ ~ {DeathLootTable:"scenario/empty",CustomName:'[{"text":"5 points","color":"dark_red"}]',CustomNameVisible:1b,PersistenceRequired:true,Tags:["hcm_die"],Health:1s,data:{Hello:1d,B:3b,GoodBye:-1.5d,d:-.5d,f:1d,dd:d}}

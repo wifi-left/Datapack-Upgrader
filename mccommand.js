@@ -58,11 +58,13 @@ function splitText(text, separator) {
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                    throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                else throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
+            } else if (text[i] == ' ') {
+                continue;
             } else {
                 tempStr += text[i];
             }
@@ -74,7 +76,7 @@ function splitText(text, separator) {
         }
     }
     if (stack.length > 0) {
-        throw SyntaxError("Missing or surplusing '" + stack[0] + "' in " + (text.length - 1));
+        throw SyntaxError("Missing or surplusing '" + stack[0] + "' at " + (text.length - 1));
     }
     if (fanXieGang > 0) {
         throw SyntaxError("Escape error.");
@@ -92,7 +94,7 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
     let keyName = '';
     var fanXieGang = 0;
     let quoteMode = false;
-
+    // console.log
     for (var i = 0; i < text.length; i++) {
         if (quoteMode) {
             if (text[i] == "\"" && !fanXieGang && stack[stack.length - 1] == "\"") {
@@ -107,13 +109,20 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
                 tempStr += text[i];
             }
         } else {
-            if (equalsChar.indexOf(text[i])!=-1 && fanXieGang == 0 && stack.length <= 0) {
+            if (equalsChar.indexOf(text[i]) != -1 && fanXieGang == 0 && stack.length <= 0) {
                 keyName = tempStr;
+                keyName = keyName;
+                // console.log(keyName)
                 if (keyName == '') {
                     throw SyntaxError("Empty keyName.");
                 }
                 tempStr = '';
             } else if (text[i] == separator && fanXieGang == 0 && stack.length <= 0) {
+                if (keyName == '' && tempStr != '') {
+                    keyName = tempStr;
+                    tempStr = '';
+                }
+                keyName = keyName;
                 if (keyName != '') {
                     if (!array)
                         cmds[keyName] = tempStr;
@@ -122,6 +131,7 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
                     throw SyntaxError("Empty keyName.");
                 }
                 tempStr = '';
+                keyName = '';
             } else if (text[i] == "\"" && fanXieGang == 0) {
                 tempStr += text[i];
                 quoteMode = true;
@@ -141,11 +151,13 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                    throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                else throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
+            } else if (text[i] == ' ') {
+                continue;
             } else {
                 tempStr += text[i];
             }
@@ -157,11 +169,16 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
         }
     }
     if (stack.length > 0) {
-        throw SyntaxError("Missing '" + stack[0] + "' in " + (text.length - 1));
+        throw SyntaxError("Missing '" + stack[0] + "' at " + (text.length - 1));
     }
     if (fanXieGang > 0) {
         throw SyntaxError("Escape error.");
     }
+    if (tempStr != '' && keyName == '') {
+        keyName = tempStr;
+        tempStr = "";
+    }
+    keyName = keyName;
     if (keyName != '') {
         if (!array)
             cmds[keyName] = tempStr;
@@ -217,7 +234,7 @@ function splitTagAndComponents(text) {
             } else if (text[i] == ']') {
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; stack.pop(); }
                 else {
-                    throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                    throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
                 }
                 if (stack.length == 0) {
                     components = tempStr;
@@ -225,7 +242,9 @@ function splitTagAndComponents(text) {
                 }
             } else if (text[i] == '}') {
                 if (stack[stack.length - 1] == '{') { tempStr += text[i]; stack.pop(); }
-                else throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
+                else throw SyntaxError("Unexpected '" + text[i] + "' at " + (i));
+            } else if (text[i] == ' ') {
+                continue;
             } else {
                 tempStr += text[i];
             }
@@ -306,7 +325,7 @@ function parseComponents(components) {
         components = (components.substring(1, components.length - 1));
     }
     // console.log(components)
-    return parseValues(components, ",", ["=","~"], false, true);
+    return parseValues(components, ",", ["=", "~"], false, true);
 }
 function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
@@ -339,12 +358,13 @@ function toItemText(itemObj, splitChar = '=') {
     let id = itemObj.id;
     let components = "";
     let tag = "";
-    if (itemObj.tags != undefined) {
+    if (itemObj.tags != undefined && itemObj.tags != "") {
         tag = NBTools.ToString(itemObj.tags);
     }
     if (itemObj.components != null) {
         for (let key in itemObj.components) {
-            components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(itemObj.components[key])}`;
+            if (itemObj.components[key] == null || itemObj.components[key] == '') components += (components == "" ? "" : ",") + `${key}`;
+            else components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(itemObj.components[key])}`;
         }
         components = `[${components}]`
     }
