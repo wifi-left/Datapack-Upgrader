@@ -882,9 +882,9 @@ module.exports={
   "description": "Upgrade your datapack from older version to newwer version",
   "main": "index.js",
   "scripts": {
-    "test": "npm install && node index.js -debug -i sample/updater_1_20 debug -y",
-    "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug\" -y",
-    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
+    "test": "npm install && node index.js -debug -i sample/updater_1_20 debug/updater_1_20 -y",
+    "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug/updater_1_21_4\" -y",
+    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/output.json\" -y",
     "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
     "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",
@@ -1051,7 +1051,7 @@ function toNbtTextFromPathAndData(path, data = "") {
                 else {
                     throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
-            } if (text[i] == '{') {
+            } else if (text[i] == '{') {
                 pathStack.push(tempStr)
 
                 tempStr = text[i];
@@ -1971,6 +1971,12 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['SelectedItem'] != undefined) {
         tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
     }
+    if(tag['Passengers']!=undefined){
+        for(let i = 0;i<tag['Passengers'].length;i++){
+            let PassengersEntityId = tag['Passengers'][i]['id'];
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+        }
+    }
     return tag;
 }
 function transformAttribute(arrs) {
@@ -2511,7 +2517,7 @@ function toNbtTextFromPathAndData(path, data = "") {
                 else {
                     throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
-            } if (text[i] == '{') {
+            } else if (text[i] == '{') {
                 pathStack.push(tempStr)
 
                 tempStr = text[i];
@@ -3287,6 +3293,12 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['text'] = JSON.parse(NBTStringParse(tag['text']));
     }
 
+    if(tag['Passengers']!=undefined){
+        for(let i = 0;i<tag['Passengers'].length;i++){
+            let PassengersEntityId = tag['Passengers'][i]['id'];
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+        }
+    }
     // if (tag['FlowerPos'] != undefined) {
     //     tag['hive_pos'] = tag['FlowerPos'];
     //     delete tag['FlowerPos'];
