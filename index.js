@@ -581,7 +581,7 @@ function splitText(text, separator) {
     cmds.push(tempStr);
     return cmds;
 }
-function parseValues(text, separator, equalsChar, array = false, valueAsNbt = false) {
+function parseValues(text, separator, equalsChar, array = false, valueAsNbt = false, splitCharForComponents = null) {
     var stack = [];
     var tempStr = '';
     var cmds = {};
@@ -613,6 +613,7 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
                 if (keyName == '') {
                     throw SyntaxError("Empty keyName.");
                 }
+                splitCharForComponents[keyName] = text[i];
                 tempStr = '';
             } else if (text[i] == separator && fanXieGang == 0 && stack.length <= 0) {
                 if (keyName == '' && tempStr != '') {
@@ -683,7 +684,9 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
     }
     if (valueAsNbt) {
         for (let i in cmds) {
-            cmds[i] = NBTools.ParseNBT(cmds[i]);
+            if (array) cmds[i].value = NBTools.ParseNBT(cmds[i].value);
+            else
+                cmds[i] = NBTools.ParseNBT(cmds[i]);
             // console.log(cmds[i])
         }
     }
@@ -787,7 +790,11 @@ function parseItemArg(item) {
     let tagAndComponent = item.substring(idx);
     let tAcs = splitTagAndComponents(tagAndComponent);
     // console.log(tAcs.components)
-    return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
+    let cop = parseComponents(tAcs.components);
+    if (cop == null) {
+        cop = { components: null, splitCharForComponents: null }
+    }
+    return { id: itemId, components: cop.components, splitCharForComponents: cop.splitCharForComponents, tags: NBTools.ParseNBT(tAcs.tags) }
 }
 function parseEntityArg(entity) {
     let idxNbt = entity.indexOf("{");
@@ -814,7 +821,8 @@ function parseBlockArg(Block) {
     if (idx == -1 || (idx > idxNbt && Block.endsWith("}"))) idx = idxNbt;
     let tagAndComponent = Block.substring(idx);
     let tAcs = splitTagAndComponents(tagAndComponent);
-    return { id: itemId, components: parseComponents(tAcs.components), tags: NBTools.ParseNBT(tAcs.tags) }
+    let cop = parseComponents(tAcs.components);
+    return { id: itemId, components: cop.components, tags: NBTools.ParseNBT(tAcs.tags) }
 }
 function parseComponents(components) {
     if (components == "" || components == null) return null;
@@ -822,7 +830,9 @@ function parseComponents(components) {
         components = (components.substring(1, components.length - 1));
     }
     // console.log(components)
-    return parseValues(components, ",", ["=", "~"], false, true);
+    let splitCharForComponents = {};
+    let values = parseValues(components, ",", ["=", "~"], false, true, splitCharForComponents);
+    return { components: values, splitCharForComponents: splitCharForComponents };
 }
 function toSelectorText(selectorObj, splitChar = '=') {
     let id = selectorObj.player;
@@ -851,7 +861,7 @@ function toSelectorText(selectorObj, splitChar = '=') {
     let result = `${id}${components}`;
     return result;
 }
-function toItemText(itemObj, splitChar = '=') {
+function toItemText(itemObj, splitChar = null) {
     let id = itemObj.id;
     let components = "";
     let tag = "";
@@ -860,8 +870,24 @@ function toItemText(itemObj, splitChar = '=') {
     }
     if (itemObj.components != null) {
         for (let key in itemObj.components) {
+            let _splitChar = splitChar;
+            if (_splitChar == null) {
+                if (itemObj.splitCharForComponents != null)
+                    _splitChar = itemObj.splitCharForComponents[key];
+                if (_splitChar == null) _splitChar = "=";
+            } else {
+                if (_splitChar === -1) {
+                    let simplestKey = deleteNameSpace(key);
+
+                    if (simplestKey == 'custom_data') {
+                        _splitChar = '~';
+                    } else {
+                        _splitChar = '=';
+                    }
+                }
+            }
             if (itemObj.components[key] == null || itemObj.components[key] == '') components += (components == "" ? "" : ",") + `${key}`;
-            else components += (components == "" ? "" : ",") + `${key}${splitChar}${NBTools.ToString(itemObj.components[key])}`;
+            else components += (components == "" ? "" : ",") + `${key}${_splitChar}${NBTools.ToString(itemObj.components[key])}`;
         }
         components = `[${components}]`
     }
@@ -874,7 +900,6 @@ function toItemText(itemObj, splitChar = '=') {
 
 
 module.exports = { parseCommand, parseSelectorArg, parseItemArg, parseBlockArg, splitText, parseValues, parseComponents, toItemText, deleteNameSpace, defaultOrValue, toSelectorText }
-
 },{"./NBTool.js":3}],7:[function(require,module,exports){
 module.exports={
   "name": "datapackupdater",
@@ -884,8 +909,8 @@ module.exports={
   "scripts": {
     "test": "npm install && node index.js -debug -i sample/updater_1_20 debug/updater_1_20 -y",
     "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug/updater_1_21_4\" -y",
-    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/output.json\" -y",
-    "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
+    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
+    "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
     "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",
     "help": "node index.js -h",
@@ -1424,7 +1449,7 @@ function transformCommand(command) {
                     return `${cmdRoot} ${selector}`;
                 } else {
                     let selector = transformSelector(comArgs[1]);
-                    let item = transformItem(comArgs[2], "~");
+                    let item = transformItem(comArgs[2], -1);
                     let extra = "";
                     if (comArgs.length == 4) {
                         extra = " " + comArgs[3];
@@ -2846,7 +2871,7 @@ function transformCommand(command) {
                 } else {
                     let selector = transformSelector(comArgs[1]);
                     // console.log(comArgs[2])
-                    let item = transformItem(comArgs[2], "~");
+                    let item = transformItem(comArgs[2], null);
                     let extra = "";
                     if (comArgs.length == 4) {
                         extra = " " + comArgs[3];
@@ -3293,10 +3318,10 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['text'] = JSON.parse(NBTStringParse(tag['text']));
     }
 
-    if(tag['Passengers']!=undefined){
-        for(let i = 0;i<tag['Passengers'].length;i++){
+    if (tag['Passengers'] != undefined) {
+        for (let i = 0; i < tag['Passengers'].length; i++) {
             let PassengersEntityId = tag['Passengers'][i]['id'];
-            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
         }
     }
     // if (tag['FlowerPos'] != undefined) {
@@ -3369,9 +3394,13 @@ function NBTStringParse(text) {
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
     // console.log(1)
-
+    // console.log(tag)
     for (let key in tag) {
         let simplestKey = deleteNameSpace(key);
+        if(simplestKey.startsWith("!")){
+            simplestKey = simplestKey.substring(1);
+        }
+        // console.log(simplestKey)
         // console.log(simplestKey)
 
         switch (simplestKey) {
@@ -3388,6 +3417,8 @@ function transformItemTags(tag, itemId = undefined) {
             case 'attribute_modifiers':
                 if (tag[key]['modifiers'] != null)
                     components[key] = tag[key]['modifiers'];
+                else
+                    components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -3395,6 +3426,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'dyed_color':
                 if (tag[key]['rgb'] != null)
                     components[key] = tag[key]['rgb'];
+                else components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -3403,9 +3435,13 @@ function transformItemTags(tag, itemId = undefined) {
             case 'stored_enchantments':
                 if (tag[key]['levels'] != null)
                     components[key] = tag[key]['levels'];
+                else {
+                    components[key] = tag[key];
+                }
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
+
                 break;
             case 'trim':
             case 'jukebox_playable':
@@ -3425,6 +3461,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'can_place_on':
                 if (tag[key]['predicates'] != null)
                     components[key] = tag[key]['predicates'];
+                else components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -3440,7 +3477,7 @@ function transformItemTags(tag, itemId = undefined) {
                 writeLine("## WARNING: NOT SUPPORTED YET FOR '" + key + "'.")
             default:
                 // console.log(simplestKey)
-                if (components[key] === undefined) components[key] = {};
+                if (components[key] === undefined) components[key] = null;
                 components[key] = tag[key];
             // console.log(key)
             // Put it into custom_data
