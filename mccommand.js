@@ -116,7 +116,8 @@ function parseValues(text, separator, equalsChar, array = false, valueAsNbt = fa
                 if (keyName == '') {
                     throw SyntaxError("Empty keyName.");
                 }
-                splitCharForComponents[keyName] = text[i];
+                if (splitCharForComponents != null)
+                    splitCharForComponents[keyName] = text[i];
                 tempStr = '';
             } else if (text[i] == separator && fanXieGang == 0 && stack.length <= 0) {
                 if (keyName == '' && tempStr != '') {
