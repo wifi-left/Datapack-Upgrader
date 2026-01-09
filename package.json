@@ -4,9 +4,9 @@
   "description": "Upgrade your datapack from older version to newwer version",
   "main": "index.js",
   "scripts": {
-    "test": "npm install && node index.js -debug -i sample/updater_1_20 debug -y",
-    "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug\" -y",
-    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
+    "test": "npm install && node index.js -debug -i sample/updater_1_20 debug/updater_1_20 -y",
+    "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug/updater_1_21_4\" -y",
+    "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/output.json\" -y",
     "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug\" \"debug/output.json\" -y",
     "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",

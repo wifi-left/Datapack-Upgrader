@@ -94,7 +94,7 @@ function toNbtTextFromPathAndData(path, data = "") {
                 else {
                     throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
-            } if (text[i] == '{') {
+            } else if (text[i] == '{') {
                 pathStack.push(tempStr)
 
                 tempStr = text[i];
@@ -870,6 +870,12 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['text'] = JSON.parse(NBTStringParse(tag['text']));
     }
 
+    if(tag['Passengers']!=undefined){
+        for(let i = 0;i<tag['Passengers'].length;i++){
+            let PassengersEntityId = tag['Passengers'][i]['id'];
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+        }
+    }
     // if (tag['FlowerPos'] != undefined) {
     //     tag['hive_pos'] = tag['FlowerPos'];
     //     delete tag['FlowerPos'];

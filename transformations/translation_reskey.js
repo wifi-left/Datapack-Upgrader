@@ -99,15 +99,18 @@ function transformText(text) {
     let rpath = Settings.relativeFilePath;
     const regu = /^[0-9_a-z.]+$/;
     if (rpath != null) {
-
         rpath = rpath.replaceAll(" ", "_");
         rpath = rpath.replaceAll("/", ".");
         if (!(regu.test(rpath))) {
             rpath = pathLib.basename(Settings.relativeFilePath);
         }
+
     } else {
         rpath = pathLib.basename(Settings.relativeFilePath);
     }
+    rpath = rpath.replaceAll(".mcfunction", "");
+    rpath = rpath.replaceAll(".json", "");
+    rpath = rpath.replaceAll("data.", "");
     if (Settings.noRepeat) {
         if (keytmp[text] != null) {
             return keytmp[text];
@@ -200,11 +203,12 @@ function toNbtTextFromPathAndData(path, data = "") {
                 // if (stack[stack.length-1] == '"') stack.pop()
                 stack.push('[');
             } else if (text[i] == ']') {
+
                 if (stack[stack.length - 1] == '[') { tempStr += text[i]; pathStack.push(tempStr); tempStr = ""; stack.pop(); }
                 else {
                     throw SyntaxError("Unexpected '" + text[i] + "' in " + (i));
                 }
-            } if (text[i] == '{') {
+            } else if (text[i] == '{') {
                 pathStack.push(tempStr)
 
                 tempStr = text[i];
@@ -1000,6 +1004,13 @@ function transformEntityTags(tag, entityId = undefined) {
     }
     if (tag['SelectedItem'] != undefined) {
         tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
+    }
+
+    if (tag['Passengers'] != undefined) {
+        for (let i = 0; i < tag['Passengers'].length; i++) {
+            let PassengersEntityId = tag['Passengers'][i]['id'];
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
+        }
     }
     return tag;
 }

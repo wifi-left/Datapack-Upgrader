@@ -1,0 +1,1 @@
+tellraw @s ["Hello, This world!",{text:"GoodBye",extra:[{text:"Goooooood",color:red}]}]
