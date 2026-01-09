@@ -423,7 +423,7 @@ function transformCommand(command) {
                 } else {
                     let selector = transformSelector(comArgs[1]);
                     // console.log(comArgs[2])
-                    let item = transformItem(comArgs[2], "~");
+                    let item = transformItem(comArgs[2], null);
                     let extra = "";
                     if (comArgs.length == 4) {
                         extra = " " + comArgs[3];
@@ -870,10 +870,10 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['text'] = JSON.parse(NBTStringParse(tag['text']));
     }
 
-    if(tag['Passengers']!=undefined){
-        for(let i = 0;i<tag['Passengers'].length;i++){
+    if (tag['Passengers'] != undefined) {
+        for (let i = 0; i < tag['Passengers'].length; i++) {
             let PassengersEntityId = tag['Passengers'][i]['id'];
-            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
         }
     }
     // if (tag['FlowerPos'] != undefined) {
@@ -946,9 +946,13 @@ function NBTStringParse(text) {
 function transformItemTags(tag, itemId = undefined) {
     let components = {};
     // console.log(1)
-
+    // console.log(tag)
     for (let key in tag) {
         let simplestKey = deleteNameSpace(key);
+        if(simplestKey.startsWith("!")){
+            simplestKey = simplestKey.substring(1);
+        }
+        // console.log(simplestKey)
         // console.log(simplestKey)
 
         switch (simplestKey) {
@@ -965,6 +969,8 @@ function transformItemTags(tag, itemId = undefined) {
             case 'attribute_modifiers':
                 if (tag[key]['modifiers'] != null)
                     components[key] = tag[key]['modifiers'];
+                else
+                    components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -972,6 +978,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'dyed_color':
                 if (tag[key]['rgb'] != null)
                     components[key] = tag[key]['rgb'];
+                else components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -980,9 +987,13 @@ function transformItemTags(tag, itemId = undefined) {
             case 'stored_enchantments':
                 if (tag[key]['levels'] != null)
                     components[key] = tag[key]['levels'];
+                else {
+                    components[key] = tag[key];
+                }
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
+
                 break;
             case 'trim':
             case 'jukebox_playable':
@@ -1002,6 +1013,7 @@ function transformItemTags(tag, itemId = undefined) {
             case 'can_place_on':
                 if (tag[key]['predicates'] != null)
                     components[key] = tag[key]['predicates'];
+                else components[key] = tag[key];
                 if (tag[key]['show_in_tooltip'] == false) {
                     hideComponentsInTooltip(components, key);
                 }
@@ -1017,7 +1029,7 @@ function transformItemTags(tag, itemId = undefined) {
                 writeLine("## WARNING: NOT SUPPORTED YET FOR '" + key + "'.")
             default:
                 // console.log(simplestKey)
-                if (components[key] === undefined) components[key] = {};
+                if (components[key] === undefined) components[key] = null;
                 components[key] = tag[key];
             // console.log(key)
             // Put it into custom_data

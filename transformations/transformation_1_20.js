@@ -480,7 +480,7 @@ function transformCommand(command) {
                     return `${cmdRoot} ${selector}`;
                 } else {
                     let selector = transformSelector(comArgs[1]);
-                    let item = transformItem(comArgs[2], "~");
+                    let item = transformItem(comArgs[2], -1);
                     let extra = "";
                     if (comArgs.length == 4) {
                         extra = " " + comArgs[3];

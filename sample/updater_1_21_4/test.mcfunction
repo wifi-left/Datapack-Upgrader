@@ -1,0 +1,1 @@
+clear @s diamond[custom_data~{a:1},enchantments={aqua_affinity:1}]

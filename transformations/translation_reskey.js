@@ -96,6 +96,12 @@ function transformText(text) {
     text = text.replaceAll("%", "%%");
     text = text.replaceAll("§Ž", "%s");
 
+    if (Settings.noRepeat) {
+        if (keytmp[text] != null) {
+            return keytmp[text];
+        }
+    }
+
     let rpath = Settings.relativeFilePath;
     const regu = /^[0-9_a-z.]+$/;
     if (rpath != null) {
@@ -111,11 +117,7 @@ function transformText(text) {
     rpath = rpath.replaceAll(".mcfunction", "");
     rpath = rpath.replaceAll(".json", "");
     rpath = rpath.replaceAll("data.", "");
-    if (Settings.noRepeat) {
-        if (keytmp[text] != null) {
-            return keytmp[text];
-        }
-    }
+
     do {
         idx++;
         keyname = "mt." + rpath + ".key_" + idx;
@@ -543,7 +545,7 @@ function transformCommand(command, newLine = true) {
                 } else {
                     let selector = transformSelector(comArgs[1]);
                     // console.log(comArgs[2])
-                    let item = transformItem(comArgs[2], '~');
+                    let item = transformItem(comArgs[2], null);
                     let extra = "";
                     if (comArgs.length == 4) {
                         extra = " " + comArgs[3];
@@ -936,7 +938,7 @@ function transformBlock(blockText) {
     }
     return toItemText(item);
 }
-function transformItem(itemText, splitChar = '=') {
+function transformItem(itemText, splitChar = null) {
     // console.log(itemText)
     let item = parseItemArg(itemText);
     // console.log(NBTools.ToString(item.tags))
@@ -1038,22 +1040,24 @@ function transformItemTags(tag, itemId = undefined) {
     for (let key in tag) {
         let simplestKey = deleteNameSpace(key);
         // console.log(simplestKey)
-
+        if (simplestKey.startsWith("!")) {
+            simplestKey = simplestKey.substring(1);
+        }
         switch (simplestKey) {
             case 'custom_name':
             case 'item_name':
-                components[simplestKey] = transformRawMsg(tag[key]);
+                components[key] = transformRawMsg(tag[key]);
                 break;
             case 'lore':
-                components[simplestKey] = [];
+                components[key] = [];
                 for (let i = 0; i < tag[key].length; i++) {
-                    components[simplestKey][i] = transformRawMsg((tag[key][i]));
+                    components[key][i] = transformRawMsg((tag[key][i]));
                 }
                 break;
             default:
                 // console.log(simplestKey)
-                if (components[key] === undefined) components[simplestKey] = {};
-                components[simplestKey] = tag[key];
+                if (components[key] === undefined) components[key] = {};
+                components[key] = tag[key];
             // console.log(key)
             // Put it into custom_data
         }

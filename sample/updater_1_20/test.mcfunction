@@ -1,2 +1,1 @@
-give @s diamond_sword{Enchantments:[{id:sharpness,lvl:1}],Hello:1d,B:3b,GoodBye:-1.5d,d:-.5d,f:1d,dd:d}
-setblock ~ ~ ~ command_block[]
+clear @s diamond{Enchantments:[{id:sharpness,lvl:1}],display:{Name:'"Hello"'},hello:true}
