@@ -188,6 +188,7 @@ module.exports = { NBTParser }
 
 },{"./inputSystem":5}],3:[function(require,module,exports){
 const { NBTParser } = require("./NBTParser.js")
+
 function getNbtContent(nbttext) {
     if (nbttext === undefined) return undefined;
     if (typeof nbttext === 'boolean') return nbttext;
@@ -332,7 +333,11 @@ function warpKey(key, isData = false) {
         throw new SyntaxError("Argument is not a String");
 
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
-    if (regu.test(key)) {
+    if (key == "true") return '"true"';
+    if (key == "false") return '"false"';
+    if (/^[0-9-,].*/.test(key)) {
+        return JSON.stringify(key)
+    } else if (regu.test(key)) {
         return key;
     } else {
         return JSON.stringify(key)
@@ -912,6 +917,7 @@ module.exports={
     "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug/updater_1_21_4\" -y",
     "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
     "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
+    "test5": "node nbtfile_lib_tester.js",
     "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",
     "help": "node index.js -h",
