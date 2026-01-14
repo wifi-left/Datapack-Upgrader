@@ -3,7 +3,7 @@ const fs = require("fs");
 const { NBTools } = require("./NBTool.js");
 let tester = new NBTFILE_PARSER();
 let saver = new NBTFILE_SAVER();
-tester.load_file_with_gzip("./sample/nbtfile/level.dat");
+tester.try_load_file_with_gzip("./sample/nbtfile/player.dat");
 // return false;
 let res = tester.parse();
 let snbt = NBTools.FromMCNBT(res);

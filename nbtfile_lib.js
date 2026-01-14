@@ -151,6 +151,16 @@ function NBTFILE_PARSER() {
         }
         return true;
     }
+
+    this.try_load_file_with_gzip = function (path) {
+        let dt = fs.readFileSync(path);
+
+        try {
+            return this.load_from_gzip_data(dt);
+        } catch (e) {
+            this.load_from_raw_data(dt);
+        }
+    }
     this.load_file_with_gzip = function (path) {
         return this.load_from_gzip_data(fs.readFileSync(path));
     }

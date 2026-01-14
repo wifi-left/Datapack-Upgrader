@@ -253,10 +253,16 @@ const NBTools = {
 
 
                 let rt = {};
+                let count = 0,last_key = null;
                 for (let key in __map) {
+                    count++;
+                    last_key = key;
                     let ele = __map[key];
                     rt[key] = parse_main(ele);
                 }
+                if(count == 1 && last_key == ""){
+                    return rt[last_key];
+                };
                 return rt;
             }
             root = parse_component(data);
