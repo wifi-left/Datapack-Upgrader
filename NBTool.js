@@ -1,4 +1,5 @@
 const { NBTParser } = require("./NBTParser.js")
+const NBTFILE_LIB = require("./nbtfile_lib.js")
 function getNbtContent(nbttext) {
     if (nbttext === undefined) return undefined;
     if (typeof nbttext === 'boolean') return nbttext;
@@ -143,7 +144,11 @@ function warpKey(key, isData = false) {
         throw new SyntaxError("Argument is not a String");
 
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
-    if (regu.test(key)) {
+    if (key == "true") return '"true"';
+    if (key == "false") return '"false"';
+    if (/^[0-9-,].*/.test(key)) {
+        return JSON.stringify(key)
+    } else if (regu.test(key)) {
         return key;
     } else {
         return JSON.stringify(key)
@@ -172,6 +177,95 @@ function removeNbtTag(dat) {
 const NBTools = {
     Class: {
         NbtObject: class { },
+    },
+    FromMCNBT: function (data) {
+        function __pack(data) {
+            let root = {};
+            function parse_main(dat) {
+                let t = dat.getType();
+                return parse_body(dat, t);
+            }
+            function parse_body(dat, t) {
+                if (t == 'component') {
+                    return parse_component(dat);
+                } else if (t == 'byte_array') {
+                    return parse_number_list(dat.getValue(), "byte");
+                } else if (t == 'int_array') {
+                    return parse_number_list(dat.getValue(), "int");
+                } else if (t == 'long_array') {
+                    return parse_number_list(dat.getValue(), "long");
+                } else if (t == 'list') {
+                    return parse_list(dat.getValue());
+                } else if (t == 'string') {
+                    let str = (dat.getValue());
+                    return JSON.stringify(str);
+                } else {
+                    return pack_num(dat);
+                }
+            }
+            function pack_num(dat) {
+                let t = dat.getType();
+                if (t == 'byte') {
+                    return dat.getValue() + "b";
+                } else if (t == 'int') {
+                    return dat.getValue() + "";
+                } else if (t == 'long') {
+                    return dat.getValue() + "l";
+                } else if (t == 'float') {
+                    return dat.getValue() + "f";
+                } else if (t == 'double') {
+                    return dat.getValue() + "d";
+                } else
+                    return dat.getValue();
+            }
+            function parse_number_list(dat, type) {
+                let arrLen = dat.length;
+                let res = "";
+                let prefix = "I";
+                if (type == 'byte') {
+                    prefix = "B";
+                } else if (type == 'int') {
+                    prefix = "I";
+                } else if (type == 'long') {
+                    prefix = "L";
+                }
+                let arr = new Array();
+                for (let i = 0; i < arrLen; i++) {
+                    arr[i] = pack_num(dat[i]);
+                }
+                if (arr[0] != null) {
+                    arr[0] = `${prefix};${arr[0]}`;
+                } else {
+                    arr[0] = `${prefix};`;
+                }
+                return arr;
+            }
+            function parse_list(dat) {
+                let arrLen = dat.length;
+                let arr = new Array();
+                for (let i = 0; i < arrLen; i++) {
+                    arr[i] = parse_main(dat[i]);
+                }
+                return arr;
+            }
+            function parse_component(dat) {
+                let __map = dat.getValue();
+
+
+                let rt = {};
+                for (let key in __map) {
+                    let ele = __map[key];
+                    rt[key] = parse_main(ele);
+                }
+                return rt;
+            }
+            root = parse_component(data);
+            return root;
+        }
+        return __pack(data);
+    },
+    ToMCNBT: function (data) {
+
     },
     ToJSON: function (NbtObject) {
         let data = NbtObject;
