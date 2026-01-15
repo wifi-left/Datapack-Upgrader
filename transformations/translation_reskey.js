@@ -92,9 +92,7 @@ function transformText(text) {
     if (text == null);
     if ((text + "") == '##!##FLAG##!##') return;
     if ((text + "").trim() == "") return text;
-    text = text.replaceAll("%s", "§Ž");
-    text = text.replaceAll("%", "%%");
-    text = text.replaceAll("§Ž", "%s");
+    text = warpPercent(text);
 
     if (Settings.noRepeat) {
         if (keytmp[text] != null) {
@@ -128,6 +126,13 @@ function transformText(text) {
     }
     Settings.result[keyname] = getNbtContent(text);
     return keyname;
+}
+function warpPercent(textS) {
+
+    let text = textS.replaceAll("%s", "§Ž");
+    text = text.replaceAll("%", "%%");
+    text = text.replaceAll("§Ž", "%s");
+    return text;
 }
 function transformRawMsg(data) {
     if (data == null) return "";
@@ -170,7 +175,7 @@ function transformRawMsg(data) {
             }
 
             data['translate'] = transformText(data['text']);
-            data['fallback'] = data['text'];
+            data['fallback'] = warpPercent(data['text']);
             delete data['text'];
         }
         return data;
@@ -186,9 +191,9 @@ function transformRawMsg(data) {
             }
         }
         if (withC.length > 0)
-            data = { fallback: (data), translate: (transformText(data)), with: withC };
+            data = { fallback: warpPercent(data), translate: (transformText(data)), with: withC };
         else
-            data = { fallback: (data), translate: (transformText(data)) };
+            data = { fallback: warpPercent(data), translate: (transformText(data)) };
         return (data);
     }
 }
@@ -807,7 +812,7 @@ function transformCommand(command, newLine = true) {
             case 'tellraw':
 
                 let selector = transformSelector(comArgs[1]);
-                
+
                 let text = transformTellraw(comArgs[2]);
 
                 return `${cmdRoot} ${selector} ${text}`;
@@ -923,7 +928,8 @@ function transformEntityItemTag(itemTag) {
         result['components'] = {};
 
         for (var key in components) {
-            result['components']["minecraft:" + deleteNameSpace(key)] = components[key];
+            let tkey = key;
+            result['components'][tkey] = components[key];
         }
     }
     if (slot != undefined) {

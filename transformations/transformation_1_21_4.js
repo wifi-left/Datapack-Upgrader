@@ -735,7 +735,7 @@ function transformEntityItemTag(itemTag) {
         components = transformItemTags(tag, rawid);
         result['components'] = {};
         for (var key in components) {
-            result['components'][(key)] = components[key];
+            result['components'][key] = components[key];
         }
     }
     if (slot != undefined) {

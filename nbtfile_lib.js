@@ -1,10 +1,65 @@
-const fs = require("fs");
+const fs = require("graceful-fs");
 const pathLib = require("path");
 const zlib = require("zlib");
 const lz4 = require("lz4");
 const Stream = require('stream');
-const { NBTStream } = require("./nbtstream.js");
+const NBTStream  = require("./nbtstream.js");
 const { JavaBufferUtils } = require("./java_buffer_utils.js");
+
+const JAVA_CONSTANTS = {
+    TAG_END: Buffer.from([0]),
+    TAG_COMPOUND: Buffer.from([10]),
+    HEADER_BUF: Buffer.from([10, 0, 0]),
+
+    // 其他常量...
+};
+
+class BufferPool {
+    constructor() {
+        this.pool = new Map();
+    }
+
+    // 获取合适大小的 Buffer
+    allocate(size) {
+        // 按大小分组，使用 2 的幂次方对齐以减少碎片
+        const alignedSize = Math.pow(2, Math.ceil(Math.log2(size)));
+
+        if (!this.pool.has(alignedSize)) {
+            this.pool.set(alignedSize, []);
+        }
+
+        const pool = this.pool.get(alignedSize);
+        if (pool.length > 0) {
+            const buffer = pool.pop();
+            buffer.fill(0); // 清空重用
+            return buffer.slice(0, size);
+        }
+
+        return Buffer.alloc(size);
+    }
+
+    // 回收 Buffer
+    release(buffer) {
+        const size = buffer.length;
+        const alignedSize = Math.pow(2, Math.ceil(Math.log2(size)));
+
+        if (!this.pool.has(alignedSize)) {
+            this.pool.set(alignedSize, []);
+        }
+
+        const pool = this.pool.get(alignedSize);
+        // 限制池大小，避免无限增长
+        if (pool.length < 10) {
+            pool.push(Buffer.from(buffer));
+        }
+    }
+
+    clear() {
+        this.pool.clear();
+    }
+}
+const bufferPool = new BufferPool();
+
 
 const NBTFILE_SNBT_TOOL = {
     ToSNBT: function (MCNBT) {
@@ -49,16 +104,13 @@ const NBTFILE_SNBT_TOOL = {
             }
             function parse_number_list(dat, type) {
                 let arrLen = dat.length;
-                let res = "";
                 let prefix = "I";
-                if (type == 'byte') {
-                    prefix = "B";
-                } else if (type == 'int') {
-                    prefix = "I";
-                } else if (type == 'long') {
-                    prefix = "L";
-                }
-                let arr = new Array();
+                if (type == 'byte') prefix = "B";
+                else if (type == 'int') prefix = "I";
+                else if (type == 'long') prefix = "L";
+
+                // 优化：预分配数组大小
+                let arr = new Array(arrLen);
                 for (let i = 0; i < arrLen; i++) {
                     arr[i] = pack_num(dat[i]);
                 }
@@ -301,15 +353,24 @@ const NBTFILE_SNBT_TOOL = {
         return __decode(SNBTObject);
     }
 }
+const supportNumberTypes = ['byte', 'short', 'int', 'long', 'float', 'double'];
 
 class MCNBT {
+    dispose() {
+        this._value = null;
+        this._type = null;
+    }
     constructor(type = 'default', value = null) {
         this._type = type;
         this._value = value;
+        this._isDisposed = false;
 
         // 创建一个Proxy包装实例
         const proxy = new Proxy(this, {
             get: function (target, prop) {
+                if (target._isDisposed) {
+                    throw new Error('MCNBT instance has been disposed');
+                }
                 // 如果直接访问实例本身（没有属性名），返回value
                 if (prop === Symbol.toPrimitive || prop === 'valueOf') {
                     return () => target.getValue();
@@ -336,6 +397,9 @@ class MCNBT {
 
             set: function (target, prop, newValue) {
                 // 如果直接对实例赋值，设置value
+                if (target._isDisposed) {
+                    throw new Error('Cannot set property on disposed MCNBT instance');
+                }
                 if (prop === '_value' || prop === 'value') {
                     target.setValue(newValue);
                     return true;
@@ -355,6 +419,27 @@ class MCNBT {
 
         return proxy;
     }
+    dispose() {
+        if (this._isDisposed) return;
+
+        if (Buffer.isBuffer(this._value)) {
+            this._value.fill(0); // 清空缓冲区内容
+        }
+
+        this._value = null;
+        this._type = null;
+        this._isDisposed = true;
+
+        // 如果有全局 gc，提示进行垃圾回收
+        if (global.gc) {
+            setImmediate(() => global.gc());
+        }
+    }
+
+    // 添加析构器
+    [Symbol.dispose]() {
+        this.dispose();
+    }
 
     // 添加 toJSON 方法
     toJSON() {
@@ -365,7 +450,6 @@ class MCNBT {
     // 修改type
     setType(newType) {
         this._type = newType;
-        return this;
     }
 
     // 获取type
@@ -375,10 +459,11 @@ class MCNBT {
     getBufData() {
         if (!Buffer.isBuffer(this._value)) {
             let ret_val = this._value;
-            const supportNumberTypes = ['byte', 'short', 'int', 'long', 'float', 'double'];
             if (supportNumberTypes.includes(this._type))
                 ret_val = JavaBufferUtils.toBuffer(this._value, this._type)
-
+            else if (this._type == 'string') {
+                return Buffer.from(this._value);
+            }
             return (ret_val);
         }
         return this._value;
@@ -387,10 +472,11 @@ class MCNBT {
     getValue() {
         let ret_val = this._value;
         if (Buffer.isBuffer(this._value)) {
-            const supportNumberTypes = ['byte', 'short', 'int', 'long', 'float', 'double', 'string'];
             if (supportNumberTypes.includes(this._type))
                 ret_val = JavaBufferUtils.fromBuffer(this._value, this._type)
-            else
+            else if (this._type == 'string') {
+                ret_val = JavaBufferUtils.fromBuffer(this._value, this._type)
+            } else
                 throw new Error(`Unknown buffer type '${this._type}'!`);
         }
         if (typeof ret_val === "bigint") {
@@ -403,12 +489,9 @@ class MCNBT {
     setValue(newValue) {
         this._value = newValue;
         if (!Buffer.isBuffer(this._value)) {
-            const supportNumberTypes = ['byte', 'short', 'int', 'long', 'float', 'double'];
             if (supportNumberTypes.includes(this._type))
                 this._value = JavaBufferUtils.toBuffer(newValue, this._type)
         }
-
-        return this;
     }
 
     // toString方法，让console.log输出更友好
@@ -453,9 +536,11 @@ function read_bytes_with_length(data, offset, length) {
 
 function NBTFILE_PARSER(data = null) {
     this.content = data;
+    this.dispose = function () {
+        this.content = null;
+    };
     this.load_from_raw_data = function (data) {
         this.content = data;
-        return this;
 
     }
     this.load_from_gzip_data = function (data) {
@@ -487,8 +572,12 @@ function NBTFILE_PARSER(data = null) {
         return this.load_from_gzip_data(fs.readFileSync(path));
     }
     this.parse = function () {
-        let buffers = Buffer.from(this.content);
-        return __parse(buffers);
+        try {
+            return __parse(Buffer.from(this.content));
+        } finally {
+            // 及时释放原始数据引用
+            buffers = null;
+        }
     }
     this.__DEBUG_showRawData = function (path) {
         let buffers = Buffer.from(this.content);
@@ -532,12 +621,16 @@ function NBTFILE_PARSER(data = null) {
         }
         function split_buffers(buf, len, type) {
             let __res = new Array();
-            for (let i = 0; i < buf.length; i += len) {
+            const count = Math.ceil(buf.length / len);
+
+            // 预分配数组
+            __res = new Array(count);
+            for (let i = 0; i < count; i++) {
                 let newBuf = Buffer.alloc(len);
-                buf.copy(newBuf, 0, i, i + len);
+                buf.copy(newBuf, 0, i * len, Math.min((i + 1) * len, buf.length));
                 if (type == 'raw')
-                    __res.push(newBuf);
-                else __res.push(new MCNBT(type, newBuf))
+                    __res[i] = newBuf;
+                else __res[i] = new MCNBT(type, newBuf);
             }
             return __res;
         }
@@ -628,169 +721,261 @@ function NBTFILE_PARSER(data = null) {
         }
         let type = read_type();
         let name = read_tagname();
-        if (type == 10) return read_compound();
-        else throw new Error(`Unknown data type '${type}' ! Are these data really in the NBT format of Minecraft? (unknown type)`);
+        if (type == 10) {
+            const result = read_compound();
+
+            return result;
+        }
+        else {
+            throw new Error(`Unknown data type '${type}' ! Are these data really in the NBT format of Minecraft? (unknown type)`);
+        }
 
     }
 }
 
-function NBTFILE_SAVER(raw_data = null) {
-    this.raw_data = raw_data;
-    this.fromBuffer = function (data) {
-        this.raw_data = data;
-        return this;
+class NBTFILE_SAVER {
+    /**
+     * 创建NBT文件保存器实例
+     * @param {Buffer|null} rawData - 原始NBT数据
+     */
+    constructor(rawData = null) {
+        this.rawData = rawData;
+        
+        // 预定义类型ID映射，避免每次调用都重新创建
+        this.TAG_TYPES = {
+            byte: 1,
+            short: 2,
+            int: 3,
+            long: 4,
+            float: 5,
+            double: 6,
+            byte_array: 7,
+            string: 8,
+            list: 9,
+            compound: 10,
+            int_array: 11,
+            long_array: 12
+        };
+        
+        // 反转映射，用于快速查找
+        this.TAG_IDS = Object.entries(this.TAG_TYPES).reduce((acc, [key, value]) => {
+            acc[value] = key;
+            return acc;
+        }, {});
     }
-    this.fromMCNBT = function (data) {
-        this.raw_data = __pack(data);
-        return this;
-    }
-    this.save_with_gzip = function (path) {
-        let _val = this.get_gzip_raw();
-        fs.writeFileSync(path, _val);
-        return this;
-    }
-    this.save_nogzip = function (path) {
-        let _val = this.get_raw();
-        fs.writeFileSync(path, _val);
+
+    /**
+     * 从Buffer设置原始数据
+     * @param {Buffer} data - 原始二进制数据
+     * @returns {NBTFileSaver} 返回实例本身以支持链式调用
+     */
+    fromBuffer(data) {
+        this.rawData = data;
         return this;
     }
 
-    this.get_gzip_raw = function () {
-        return zlib.gzipSync(this.raw_data);
+    /**
+     * 从MCNBT对象设置数据
+     * @param {Object} data - MCNBT对象
+     * @returns {NBTFileSaver} 返回实例本身以支持链式调用
+     */
+    fromMCNBT(data) {
+        this.rawData = this.#pack(data);
+        return this;
     }
-    this.get_raw = function () {
-        return this.raw_data;
-    }
-    function getTypeId(type) {
-        let id = 0;
-        switch (type) {
-            case 'byte':
-                id = 1;
-                break;
-            case 'short':
-                id = 2;
-                break;
-            case 'int':
-                id = 3;
-                break;
-            case 'long':
-                id = 4;
-                break;
-            case 'float':
-                id = 5;
-                break;
-            case 'double':
-                id = 6;
-                break;
-            case 'byte_array':
-                id = 7;
-                break;
-            case 'string':
-                id = 8;
-                break;
-            case 'list':
-                id = 9;
-                break;
-            case 'compound':
-                id = 10;
-                break;
-            case 'int_array':
-                id = 11;
-                break;
-            case 'long_array':
-                id = 12;
-                break;
-        }
-        return id;
-    }
-    function __pack(data) {
-        const bufs = new NBTStream()
-        function parse_main(dat, name) {
-            let t = dat.getType();
 
-            let id = getTypeId(t);
-            let name_buf = Buffer.from(name);
-            let name_len = name_buf.length;
-            if (name_len >= 65536) {
-                throw new Error(`The length of the tag name ${name_len}, which is greater than the maximum value of 65535.`);
-            }
-            let prefix_buf = Buffer.alloc(3 + name_len); //1 id 2-3 len 4+ name
-            prefix_buf[0] = id;
-            JavaBufferUtils.toShort(name_len).copy(prefix_buf, 1, 0, 2);
-            name_buf.copy(prefix_buf, 3, 0, name_len);
-            bufs.write(prefix_buf);
-            // console.log(name)
+    /**
+     * 保存为GZIP压缩的NBT文件
+     * @param {string} path - 文件路径
+     * @returns {NBTFileSaver} 返回实例本身以支持链式调用
+     */
+    save_with_gzip(path) {
+        fs.writeFileSync(path, this.getGzipRaw());
+        return this;
+    }
 
-            parse_body(dat, t);
-        }
-        function parse_body(dat, t) {
-            if (t == 'compound') {
-                parse_compound(dat);
-                bufs.write(Buffer.from([0]));
-            } else if (t == 'byte_array') {
-                parse_number_list(dat.getValue());
-            } else if (t == 'int_array') {
-                parse_number_list(dat.getValue());
-            } else if (t == 'long_array') {
-                parse_number_list(dat.getValue());
-            } else if (t == 'list') {
-                parse_list(dat.getValue());
-            } else if (t == 'string') {
-                let str = (dat.getValue());
-                let strBuf = Buffer.from(str);
-                let bufLen = strBuf.length;
-                if (bufLen >= 65536)
-                    throw new Error(`The length of the tag name ${name_len}, which is greater than the maximum value of 65535.`);
-                let bufLenBuf = JavaBufferUtils.toShort(bufLen);
-                bufs.write(bufLenBuf);
-                bufs.write(strBuf);
-            } else {
-                bufs.write(dat.getBufData())
+    /**
+     * 保存为未压缩的NBT文件
+     * @param {string} path - 文件路径
+     * @returns {NBTFileSaver} 返回实例本身以支持链式调用
+     */
+    save_nogzip(path) {
+        fs.writeFileSync(path, this.getRaw());
+        return this;
+    }
+
+    /**
+     * 获取GZIP压缩后的原始数据
+     * @returns {Buffer} GZIP压缩数据
+     */
+    getGzipRaw() {
+        return zlib.gzipSync(this.rawData);
+    }
+
+    /**
+     * 获取原始数据
+     * @returns {Buffer} 原始数据
+     */
+    get_raw() {
+        return this.rawData;
+    }
+
+    /**
+     * 获取类型ID
+     * @param {string} type - 类型名称
+     * @returns {number} 类型ID
+     */
+    #getTypeId(type) {
+        return this.TAG_TYPES[type] || 0;
+    }
+
+    /**
+     * 将MCNBT对象打包为二进制数据
+     * @param {Object} data - MCNBT对象
+     * @returns {Buffer} 打包后的二进制数据
+     */
+    #pack(data) {
+        const bufs = new NBTStream();
+        
+        /**
+         * 解析并写入标签头部信息
+         * @param {Object} tag - 标签对象
+         * @param {string} name - 标签名称
+         */
+        const parseMain = (tag, name) => {
+            const type = tag.getType();
+            const typeId = this.#getTypeId(type);
+            const nameBuf = Buffer.from(name, 'utf8');
+            const nameLen = nameBuf.length;
+            
+            if (nameLen >= 65536) {
+                throw new Error(`The length of the tag name ${nameLen}, which is greater than the maximum value of 65535.`);
             }
-        }
-        function parse_number_list(dat) {
-            let arrLen = dat.length;
-            let arrLenBuf = JavaBufferUtils.toInt(arrLen);
-            bufs.write(arrLenBuf);
-            for (let i = 0; i < arrLen; i++) {
-                bufs.write(dat[i].getBufData());
+            
+            const prefixBuf = Buffer.alloc(3 + nameLen);
+            prefixBuf[0] = typeId;
+            JavaBufferUtils.toShort(nameLen).copy(prefixBuf, 1);
+            nameBuf.copy(prefixBuf, 3);
+            
+            bufs.write(prefixBuf);
+            parseBody(tag, type);
+        };
+
+        /**
+         * 解析标签体
+         * @param {Object} tag - 标签对象
+         * @param {string} type - 标签类型
+         */
+        const parseBody = (tag, type) => {
+            switch (type) {
+                case 'compound':
+                    parseCompound(tag);
+                    bufs.write(Buffer.from([0]));
+                    break;
+                    
+                case 'byte_array':
+                case 'int_array':
+                case 'long_array':
+                    parseNumberArray(tag.getValue());
+                    break;
+                    
+                case 'list':
+                    parseList(tag.getValue());
+                    break;
+                    
+                case 'string':
+                    const str = tag.getValue();
+                    const strBuf = Buffer.from(str, 'utf8');
+                    const strLen = strBuf.length;
+                    
+                    if (strLen >= 65536) {
+                        throw new Error(`The length of the string ${name_len}, which is greater than the maximum value of 65535.`);
+                    }
+                    
+                    bufs.write(JavaBufferUtils.toShort(strLen));
+                    bufs.write(strBuf);
+                    break;
+                    
+                default:
+                    bufs.write(tag.getBufData());
             }
-        }
-        function parse_list(dat) {
-            let arrLen = dat.length;
-            let arrLenBuf = JavaBufferUtils.toInt(arrLen);
+        };
+
+        /**
+         * 解析数字数组
+         * @param {Array} array - 数字数组
+         */
+        const parseNumberArray = (array) => {
+            const arrLen = array.length;
+            bufs.write(JavaBufferUtils.toInt(arrLen));
+            
+            for (const element of array) {
+                bufs.write(element.getBufData());
+            }
+        };
+
+        /**
+         * 解析列表
+         * @param {Array} list - 列表数据
+         */
+        const parseList = (list) => {
+            const listLen = list.length;
             let typeId = 0;
-            let t = null;
-            if (arrLen > 0) {
-                t = dat[0].getType();
-                typeId = getTypeId(t);
+            let elementType = null;
+            
+            if (listLen > 0) {
+                elementType = list[0].getType();
+                typeId = this.#getTypeId(elementType);
             }
+            
             bufs.write(Buffer.from([typeId]));
-            bufs.write(arrLenBuf);
+            bufs.write(JavaBufferUtils.toInt(listLen));
+            
+            for (const element of list) {
+                parseBody(element, elementType);
+            }
+        };
 
-            for (let i = 0; i < arrLen; i++) {
-                parse_body(dat[i], t);
+        /**
+         * 解析复合标签
+         * @param {Object} compound - 复合标签对象
+         */
+        const parseCompound = (compound) => {
+            const map = compound.getValue();
+            
+            for (const [key, value] of Object.entries(map)) {
+                parseMain(value, key);
             }
-        }
-        function parse_compound(dat) {
-            let __map = dat.getValue();
-            for (let key in __map) {
-                let ele = __map[key];
-                parse_main(ele, key);
-            }
-        }
+        };
+
+        // 写入根标签头部（类型为compound，无名标签）
         bufs.write(Buffer.from([10, 0, 0]));
-        parse_compound(data)
+        parseCompound(data);
         bufs.write(Buffer.from([0]));
         bufs.end();
+        
         return bufs.getBuffer();
     }
 }
+
 
 function MCAFILE_PARSER(data = null) {
     this.content = data;
     this.headers = new Array();
     this.path = null;
+    this.dispose = function () {
+        this.content = null;
+        if (this.headers)
+            this.headers.length = 0;
+        this.headers = null;
+        this.path = null;
+
+        // 如果有全局 gc，尝试触发
+        if (global.gc) {
+            global.gc();
+        }
+    };
+
     this.load_from_raw_data = function (data) {
         this.content = data;
     }
@@ -816,6 +1001,8 @@ function MCAFILE_PARSER(data = null) {
         for (let i = 0; i < this.headers.length; i++) {
             let tester = this.parse_region_data(this.headers[i]);
             this.headers[i].data = tester.content;
+            tester.content = null;
+            tester = null;
         }
         return this.headers;
     }
@@ -895,10 +1082,13 @@ function MCAFILE_PARSER(data = null) {
         } else {
             throw new Error(`Unsupport compress algorithm type ${compressType}!`);
         }
-        return new NBTFILE_PARSER(tdata);
+        rdata = null;
+        dat = null;
+        return (tdata);
     }
     function __parse_header(data) {
         let dat = Buffer.from(data);
+
         let arr = new Array();
         if (dat.length < 8 * 1024) {
             throw new Error(`Region data has truncated header: ${dat.length}`);
@@ -956,14 +1146,17 @@ function MCAFILE_SAVER(headers) {
                     const decompressedData = zlib.gzipSync(data);
                     return decompressedData;
                 } catch (error) {
-                    throw new Error('Unzip error (GZip (RFC1952)): ', error);
+                    console.error(error);
+
+                    throw new Error('Enzip error (GZip (RFC1952)).');
                 }
             } else if (compressType == 2) {
                 try {
                     const decompressedData = zlib.deflateSync(data);
                     return decompressedData;
                 } catch (error) {
-                    throw new Error('Unzip error (Zlib (RFC1950)): ', error);
+                    console.error(error);
+                    throw new Error('Enzip error (Zlib (RFC1950)).');
                 }
             } else if (compressType == 3) {
                 // 不压缩
@@ -973,7 +1166,8 @@ function MCAFILE_SAVER(headers) {
                     const decompressedData = lz4.encode(data);
                     return decompressedData;
                 } catch (error) {
-                    throw new Error('Unzip error (LZ4): ', error);
+                    console.error(error);
+                    throw new Error('Enzip error (LZ4): ');
                 }
             } else {
                 throw new Error(`Unsupport compress algorithm type ${compressType}!`);

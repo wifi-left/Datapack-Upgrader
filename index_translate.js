@@ -1,11 +1,30 @@
 #!/usr/bin/env node
+// 检测当前内存限制
+const v8 = require('v8');
+console.log('Memory Limit:', v8.getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB');
+
+
 const NBTFILE_LIB = require("./nbtfile_lib.js")
 const translation_getkey = require("./transformations/translation_getkey.js");
 const translation_applykey = require("./transformations/translation_applykey.js");
 const translation_reskey = require("./transformations/translation_reskey.js");
 const { Settings, writeDebugLine, writeLine } = require("./inputSystem.js");
 const readlineSync = require('readline-sync');
-var transform_version = "get";
+var transform_version = "reskey";
+
+// const MCAFILE_PARSER = new NBTFILE_LIB.MCAFILE_PARSER();
+// const MCAFILE_SAVER = new NBTFILE_LIB.MCAFILE_SAVER();
+// const NBTFILE_PARSER = new NBTFILE_LIB.NBTFILE_PARSER()
+// const NBTFILE_SAVER = new NBTFILE_LIB.NBTFILE_SAVER()
+
+function sleep(ms) {
+    // 创建共享内存和视图
+    const buffer = new SharedArrayBuffer(4);
+    const view = new Int32Array(buffer);
+
+    // 使用Atomics.wait阻塞，直到超时
+    Atomics.wait(view, 0, 0, ms);
+}
 
 const MOVE_LEFT = Buffer.from('1b5b3130303044', 'hex').toString();
 const MOVE_UP = Buffer.from('1b5b3141', 'hex').toString();
@@ -185,43 +204,36 @@ function transformReskeyMCNBT(data) {
         if (dt['Teams'] != null) {
             let ddt = dt['Teams'];
             for (let i = 0; i < ddt.length; i++) {
-                let ele = ddt[i];
-                if (ele['MemberNamePrefix'] != null) {
-                    ele['MemberNamePrefix'] = translation_reskey.transformRawMsg(ele['MemberNamePrefix']);
+                if (ddt[i]['MemberNamePrefix'] != null) {
+                    translation_reskey.transformRawMsg(ddt[i]['MemberNamePrefix']);
                 }
-                if (ele['MemberNameSuffix'] != null) {
-                    ele['MemberNameSuffix'] = translation_reskey.transformRawMsg(ele['MemberNameSuffix']);
+                if (ddt[i]['MemberNameSuffix'] != null) {
+                    translation_reskey.transformRawMsg(ddt[i]['MemberNameSuffix']);
                 }
-                ddt[i] = ele;
             }
         }
         if (dt['Objectives'] != null) {
             let ddt = dt['Objectives'];
             for (let i = 0; i < ddt.length; i++) {
-                let ele = ddt[i];
-                if (ele['DisplayName'] != null) {
-                    ele['DisplayName'] = translation_reskey.transformRawMsg(ele['DisplayName']);
+                if (ddt[i]['DisplayName'] != null) {
+                    translation_reskey.transformRawMsg(ddt[i]['DisplayName']);
                 }
-                ddt[i] = ele;
             }
         }
     } else if (extname == '.mca') {
         if (data['block_entities'] != null) {
             let dt = data['block_entities'];
             for (let i = 0; i < dt.length; i++) {
-                dt[i] = translation_reskey.transformBlockTags(dt[i]);
+                translation_reskey.transformBlockTags(dt[i]);
             }
-            data['block_entities'] = dt;
         }
         if (data['Entities'] != null) {
             let dt = data['Entities'];
             for (let i = 0; i < dt.length; i++) {
-                dt[i] = translation_reskey.transformEntityTags(dt[i]);
+                translation_reskey.transformEntityTags(dt[i]);
             }
-            data['Entities'] = dt;
         }
     }
-    return data;
 }
 function transformReskeyFile_true(input) {
     // Settings.noWarnings = false;
@@ -269,6 +281,7 @@ function transformReskeyFile_true(input) {
 
             Settings.OutputFile.write(translation_reskey.transformJSON(content))
 
+
         } catch (e) {
             writeDebugLine(e);
             console.error(`## ERROR: Reading file failed: ${e.message}`);
@@ -278,7 +291,12 @@ function transformReskeyFile_true(input) {
             return;
 
         if (['.nbt', '.dat'].includes(pathLib.extname(input))) {
+            if (fs.statSync(input).size == 0) return;
             try {
+                if (global.gc) {
+                    global.gc();
+
+                }
                 let parser = new NBTFILE_LIB.NBTFILE_PARSER();
                 let saver = new NBTFILE_LIB.NBTFILE_SAVER();
                 let isGziped = parser.try_load_file_with_gzip(input);
@@ -304,9 +322,11 @@ function transformReskeyFile_true(input) {
 
 
         } else if (pathLib.extname(input) == '.mca') {
+            if (fs.statSync(input).size == 0) return;
+
+            let parser = new NBTFILE_LIB.MCAFILE_PARSER();
+            let saver = new NBTFILE_LIB.MCAFILE_SAVER();
             try {
-                let parser = new NBTFILE_LIB.MCAFILE_PARSER();
-                let saver = new NBTFILE_LIB.MCAFILE_SAVER();
                 parser.load_file(input);
                 parser.parse_header();
 
@@ -315,31 +335,53 @@ function transformReskeyFile_true(input) {
                 Settings.hasLog = false
                 console.log("Loading MCA Regions...")
                 let LEN = parser.headers.length;
+                saver.headers = parser.headers;
+                parser.headers = null;
                 for (let i = 0; i < LEN; i++) {
                     if ((i + 1) % (LEN / 16) == 0) {
                         clearnLine(1);
-                        console.log(`Loading MCA [${(i + 1)}/${parser.headers.length}]...`)
+                        console.log(`Loading MCA [${(i + 1)}/${saver.headers.length}]...`)
                     }
 
-                    let tester = parser.parse_region_data(parser.headers[i]);
-                    let snbt = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToSNBT(new NBTFILE_LIB.NBTFILE_PARSER(tester.content).parse());
+                    let tester = parser.parse_region_data(saver.headers[i]);
+                    let NBTparser = new NBTFILE_LIB.NBTFILE_PARSER();
+                    NBTparser.load_from_raw_data(tester);
+                    let temp = NBTparser.parse();
+                    let snbt = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToSNBT(temp);
 
-                    snbt = transformReskeyMCNBT(snbt);
-                    // console.log(snbt)
+                    transformReskeyMCNBT(snbt);
+                    // // console.log(snbt)
                     let p = new NBTFILE_LIB.NBTFILE_SAVER();
-                    p.fromMCNBT(NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToMCNBT(snbt));
-                    parser.headers[i].data = p.get_raw();
+                    let q = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToMCNBT(snbt);
+                    p.fromMCNBT(q);
+                    saver.headers[i].data = p.get_raw();
+                    // saver.headers[i].data = tester;
+                    NBTparser.dispose();
+                    // p.raw_data = null;
                 }
                 clearnLine(1);
-                saver.headers = parser.headers;
                 saver.save_to_file(Settings.OutputFilePath, 2);
                 // Settings.OutputFile.write(translation_reskey.transformJSON(content))
+
+                for (let i in saver.headers) {
+                    saver.headers[i].data = null;
+                }
+                parser.dispose();
+                saver.headers.length = 0;
+                parser.content = null;
+                parser.headers = null;
+                saver.headers = null;
             } catch (e) {
+
+                parser.content = null;
+                parser.headers = null;
+                saver.headers = null;
                 writeDebugLine(e);
                 console.error(`## ERROR: Reading file failed: ${e.message}`);
             }
         }
     }
+    return;
 }
 function transformReskeyFolder(dir, output, reskeyOutput, overwrite = false) {
 
@@ -358,9 +400,7 @@ function transformReskeyFolder(dir, output, reskeyOutput, overwrite = false) {
     if (!output.endsWith("/")) output = output + "/";
 
     for (let i = 0; i < files.length; i++) {
-
         // readline.clearLine(process.stdout, 0); //移动光标到行首
-
         let percent = (i / files.length).toFixed(4);
         var cell_num = Math.floor(percent * 25); // 计算需要多少个 █ 符号来拼凑图案
 
@@ -391,6 +431,7 @@ function transformReskeyFolder(dir, output, reskeyOutput, overwrite = false) {
                 Settings.OutputFilePath = outputPath;
                 transformReskeyFile_true(files[i]);
                 Settings.OutputFile.end();
+                Settings.OutputFile = null;
             } else {
                 Settings.OutputFilePath = outputPath;
                 Settings.OutputFile = null;
@@ -426,6 +467,7 @@ function transformFile(input, output, overwrite = false) {
             if (!fs.existsSync(pathLib.dirname(output))) fs.mkdirSync(pathLib.dirname(output), { recursive: true });
             content = fs.readFileSync(input, { encoding: "utf8" });
             Settings.OutputFile = fs.createWriteStream(output);
+
             Settings.OutputFilePath = output;
             writeLine("##")
             writeLine("## Datapack Upgrader v" + package.version + " by " + package.author)

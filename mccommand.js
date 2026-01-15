@@ -12,6 +12,7 @@ function defaultOrValue(item, defaultValue = undefined) {
 }
 function deleteNameSpace(name) {
     if (name == undefined) return "";
+    if (name.startsWith("!minecraft:")) return "!" + name.substring("!minecraft:".length);
     if (name.startsWith("minecraft:")) return name.substring("minecraft:".length);
     return name;
 }

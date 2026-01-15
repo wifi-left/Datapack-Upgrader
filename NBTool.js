@@ -144,8 +144,6 @@ function warpKey(key, isData = false) {
         throw new SyntaxError("Argument is not a String");
 
     var regu = /^\w+$/; // From wiki: https://zh.minecraft.wiki/w/NBT%E6%A0%BC%E5%BC%8F
-    if (key == "true") return '"true"';
-    if (key == "false") return '"false"';
     if (/^[0-9-,].*/.test(key)) {
         return JSON.stringify(key)
     } else if (regu.test(key)) {
