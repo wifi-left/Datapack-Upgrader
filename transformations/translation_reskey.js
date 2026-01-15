@@ -150,6 +150,15 @@ function transformRawMsg(data) {
         if (data['selector'] != null) {
             data['selector'] = warpKey(transformSelector(getNbtContent(data['selector'])));
         }
+        if (data['translate'] != null) {
+            let keyname = getNbtContent(data['translate']);
+            if (data['fallback'] != null) {
+                Settings.result[keyname] = getNbtContent(data['fallback']);
+            }
+            else {
+                Settings.result[keyname] = getNbtContent(data['translate']);
+            }
+        }
         if (data['text'] != null) {
             if (MacOSMode) {
                 const regex = /\$\([a-zA-Z0-9_]+\)/g;
@@ -796,8 +805,11 @@ function transformCommand(command, newLine = true) {
                     return `${cmdRoot} ${selector} ${item}${extra}`;
                 }
             case 'tellraw':
+
                 let selector = transformSelector(comArgs[1]);
+                
                 let text = transformTellraw(comArgs[2]);
+
                 return `${cmdRoot} ${selector} ${text}`;
                 break;
             case 'title':
@@ -909,8 +921,9 @@ function transformEntityItemTag(itemTag) {
         // console.log(tag)
         components = transformItemTags(tag, rawid);
         result['components'] = {};
+
         for (var key in components) {
-            result['components']["minecraft:" + key] = components[key];
+            result['components']["minecraft:" + deleteNameSpace(key)] = components[key];
         }
     }
     if (slot != undefined) {
@@ -975,6 +988,10 @@ function transformBlockTags(tag) {
             }
         }
     }
+    if (tag['Command'] != undefined) {
+        tag['Command'] = warpKey(transformCommand(getNbtContent(tag['Command']), false));
+    }
+
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
@@ -1014,6 +1031,7 @@ function transformEntityTags(tag, entityId = undefined) {
             tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
         }
     }
+
     return tag;
 }
 function NBTStringParse(text) {
@@ -1054,6 +1072,19 @@ function transformItemTags(tag, itemId = undefined) {
                     components[key][i] = transformRawMsg((tag[key][i]));
                 }
                 break;
+            case 'written_book_content':
+                components[key] = tag[key];
+                let p = components[key]['pages'];
+                for (let i = 0; i < p.length; i++) {
+                    if (p[i].raw != undefined) {
+                        let t = transformRawMsg(p[i].raw);
+                        p[i].raw = t;
+                    } else {
+                        p[i] = transformRawMsg(p[i]);
+                    }
+                }
+                components[key]['pages'] = p;
+                break;
             default:
                 // console.log(simplestKey)
                 if (components[key] === undefined) components[key] = {};
@@ -1065,4 +1096,4 @@ function transformItemTags(tag, itemId = undefined) {
 
     return components;
 }
-module.exports = { transformId, transformCommand, transformJSON }
+module.exports = { transformId, transformCommand, transformJSON, transformRawMsg, transformEntityTags, transformBlockTags, transformItemTags }

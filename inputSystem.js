@@ -12,7 +12,8 @@ var Settings = {
     result: null,
     warningMessagesRaw: "",
     relativeFilePath: null,
-    noRepeat:false
+    noRepeat:false,
+    enableBinary:false
 };
 function writeLine(...lines) {
     for (let i = 0; i < lines.length; i++) {

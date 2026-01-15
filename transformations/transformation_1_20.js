@@ -49,7 +49,7 @@ function modifyLootTableTree(data) {
                         let components = transformItemTags(NBTools.ParseNBT(nbt), itemid);
                         data[i][j]['components'] = {}
                         for (let k in components) {
-                            data[i][j]['components']["minecraft:" + k] = NBTools.ToJSON(components[k]);
+                            data[i][j]['components']["minecraft:" + deleteNameSpace(k)] = NBTools.ToJSON(components[k]);
 
                         }
                         delete data[i][j]['tag'];
@@ -774,18 +774,20 @@ function transformSelector(selectorText) {
 }
 function transformEntityItemTag(itemTag) {
     // console.log(itemTag)
+    if (itemTag == null) return {};
     let id = itemTag.id;
     let rawid = getNbtContent(id);
-    let count = getNbtContent(itemTag.Count);
-    let tag = itemTag.tag;
+    let count = getNbtContent(itemTag.count);
+    let tag = itemTag.components;
     let slot = itemTag.Slot;
     let components = null;
     let result = { id: id, count: count };
     if (tag != undefined) {
+        // console.log(tag)
         components = transformItemTags(tag, rawid);
         result['components'] = {};
         for (var key in components) {
-            result['components']["minecraft:" + (key)] = components[key];
+            result['components'][key] = components[key];
         }
     }
     if (slot != undefined) {
@@ -907,6 +909,46 @@ function transformBlockTags(tag) {
         tag['exit_portal'] = transformBlockItemTag(tag['ExitPortal']);
         delete tag['ExitPortal'];
     }
+    if (tag['Text1'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][0] = tag['Text1'];
+        delete tag['Text1'];
+    }
+    if (tag['Text2'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][1] = tag['Text2'];
+        delete tag['Text2'];
+    }
+    if (tag['Text3'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][2] = tag['Text3'];
+        delete tag['Text13'];
+    }
+    if (tag['Text4'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][3] = tag['Text4'];
+        delete tag['Text4'];
+    }
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
@@ -1027,10 +1069,10 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['SelectedItem'] != undefined) {
         tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
     }
-    if(tag['Passengers']!=undefined){
-        for(let i = 0;i<tag['Passengers'].length;i++){
+    if (tag['Passengers'] != undefined) {
+        for (let i = 0; i < tag['Passengers'].length; i++) {
             let PassengersEntityId = tag['Passengers'][i]['id'];
-            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
         }
     }
     return tag;

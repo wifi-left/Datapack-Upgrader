@@ -1,12 +1,13 @@
 const fs = require("fs");
 const pathLib = require("path");
 const zlib = require("zlib");
+const lz4 = require("lz4");
 const Stream = require('stream');
 const { NBTStream } = require("./nbtstream.js");
 const { JavaBufferUtils } = require("./java_buffer_utils.js");
 
 const NBTFILE_SNBT_TOOL = {
-    FromMCNBT: function (data) {
+    ToSNBT: function (MCNBT) {
         function __pack(data) {
             let root = {};
             function parse_main(dat) {
@@ -14,8 +15,8 @@ const NBTFILE_SNBT_TOOL = {
                 return parse_body(dat, t);
             }
             function parse_body(dat, t) {
-                if (t == 'component') {
-                    return parse_component(dat);
+                if (t == 'compound') {
+                    return parse_compound(dat);
                 } else if (t == 'byte_array') {
                     return parse_number_list(dat.getValue(), "byte");
                 } else if (t == 'int_array') {
@@ -76,7 +77,7 @@ const NBTFILE_SNBT_TOOL = {
                 }
                 return arr;
             }
-            function parse_component(dat) {
+            function parse_compound(dat) {
                 let __map = dat.getValue();
 
 
@@ -93,13 +94,211 @@ const NBTFILE_SNBT_TOOL = {
                 };
                 return rt;
             }
-            root = parse_component(data);
+            root = parse_compound(data);
             return root;
         }
-        return __pack(data);
+        return __pack(MCNBT);
     },
-    ToMCNBT: function (data) {
+    ToMCNBT: function (SNBTObject) {
+        function __getNbtContent(nbttext) {
+            if (nbttext === undefined) return undefined;
+            if (typeof nbttext === 'boolean') return nbttext;
+            if (typeof nbttext === 'object') {
+                if (Array.isArray(nbttext)) {
+                    if (nbttext.length >= 1) {
+                        if (typeof (nbttext[0]) === 'string') {
+                            if (nbttext[0].startsWith("B;") || nbttext[0].startsWith("I;") || nbttext[0].startsWith("L;")) {
+                                nbttext[0] = nbttext[0].substring(2);
+                                for (let i = 0; i < nbttext.length; i++) {
+                                    nbttext[i] = __getNbtContent(nbttext[i]);
+                                }
+                            }
+                        }
+                    }
+                }
+                return nbttext;
+            }
+            if (typeof (nbttext) !== 'string') return nbttext;
+            if (nbttext.startsWith("\"")) {
+                return JSON.parse(nbttext);
+            } else if (nbttext.startsWith("'")) {
+                return (nbttext.substring(1, nbttext.length - 1).replaceAll("\\\\", "\\"));
+            }
+            if (nbttext.length <= 1) return nbttext;
 
+            if (('0' > nbttext[0] || nbttext[0] > '9') && (nbttext[0] != '-' && nbttext[0] != "."))
+                return nbttext;
+
+            switch (nbttext[nbttext.length - 1]) {
+                case 's':
+                case 'S':
+                case 'b':
+                case 'B':
+                    return parseInt(nbttext.substring(0, nbttext.length - 1));
+                case 'l':
+                case 'L':
+                    return BigInt(nbttext.substring(0, nbttext.length - 1));
+                case 'f':
+                case 'F':
+                case 'd':
+                case 'D':
+                    return parseFloat(nbttext.substring(0, nbttext.length - 1));
+                default:
+                    if (nbttext[0] == '.') nbttext = "0" + nbttext;
+
+                    // console.log()
+                    let floatN = parseFloat(nbttext);
+                    return floatN;
+            }
+        }
+        function __getNbtType(nbttext) {
+
+            if (typeof (nbttext) === 'boolean') return 'byte';
+            if (typeof (nbttext) === 'object') {
+                if (Array.isArray(nbttext)) {
+                    if (nbttext.length >= 1) {
+                        if (typeof (nbttext[0]) === 'string') {
+                            if (nbttext[0].startsWith("B;")) return 'byte_array';
+                            if (nbttext[0].startsWith("I;")) return 'int_array';
+                            if (nbttext[0].startsWith("L;")) return 'long_array';
+
+                            // || nbttext[0].startsWith("I;") || nbttext[0].startsWith("L;")) {
+
+
+                        }
+                    }
+                    return 'list';
+                }
+                return 'compound';
+
+            }
+            if (typeof (nbttext) !== 'string') {
+                if (typeof (nbttext) == 'number') {
+                    if (parseInt(nbttext) == nbttext)
+                        return 'int';
+                    else return 'double';
+                }
+                if (typeof (nbttext) == 'bigint') return 'long';
+            }
+            if (nbttext.startsWith("\"")) {
+                return 'string';
+            } else if (nbttext.startsWith("'")) {
+                return 'string';
+            }
+            if (nbttext.length > 2)
+                if (('0' > nbttext[0] || nbttext[0] > '9') && nbttext[0] != '-' && nbttext[0] != '.') {
+                    return 'string';
+                }
+            if (nbttext[0] == '.') nbttext = "0" + nbttext;
+            let intN = null;
+            let floatN = null;
+            let tempStr = nbttext;
+            switch (nbttext[nbttext.length - 1]) {
+                case 'b':
+                case 'B':
+                    tempStr = nbttext.substring(0, nbttext.length - 1);
+                    intN = parseInt(tempStr);
+                    if (intN != tempStr) return 'string'
+                    return 'byte';
+                case 's':
+                case 'S':
+                    tempStr = nbttext.substring(0, nbttext.length - 1);
+                    intN = parseInt(tempStr);
+                    if (intN != tempStr) return 'string'
+                    return 'short';
+                case 'l':
+                case 'L':
+                    tempStr = nbttext.substring(0, nbttext.length - 1);
+                    intN = parseInt(tempStr);
+                    if (intN != tempStr) return 'string'
+                    return 'long';
+                case 'f':
+                case 'F':
+                    if (nbttext[0] == '.') nbttext = "0" + nbttext;
+                    else if (nbttext[0] == '-' && nbttext[1] == '.') nbttext = "-0" + nbttext.substring(1);
+
+                    tempStr = nbttext.substring(0, nbttext.length - 1);
+                    if (tempStr[tempStr.length - 1] == '.') tempStr.substring(0, tempStr.length - 1);
+                    intN = parseFloat(tempStr);
+                    if (intN != tempStr) return 'string'
+                    return 'float';
+                case 'D':
+                case 'd':
+                    if (nbttext[0] == '.') nbttext = "0" + nbttext;
+                    else if (nbttext[0] == '-' && nbttext[1] == '.') nbttext = "-0" + nbttext.substring(1);
+
+                    tempStr = nbttext.substring(0, nbttext.length - 1);
+                    if (tempStr[tempStr.length - 1] == '.') tempStr.substring(0, tempStr.length - 1);
+                    intN = parseFloat(tempStr);
+                    if (intN != tempStr) return 'string';
+                    return 'double';
+                default:
+                    if (nbttext[0] == '.') nbttext = "0" + nbttext;
+                    intN = parseInt(nbttext);
+                    floatN = parseFloat(nbttext);
+                    if (floatN != nbttext) return 'unknown';
+                    return (intN == floatN ? 'int' : 'double');
+            }
+        }
+        function __decode(NbtObject) {
+
+            if (NbtObject == null) return null;
+            let type = __getNbtType(NbtObject);
+            let rt = new MCNBT(type, "");
+
+            let val = __getNbtContent(NbtObject);
+            let subtype = null;
+            switch (type) {
+                case 'int_array':
+                case 'byte_array':
+                case 'long_array':
+                    if (type == 'int_array') subtype = 'int';
+                    else if (type == 'byte_array') subtype = 'byte';
+                    else if (type == 'long_array') subtype = 'long';
+                    for (let i = 0; i < val.length; i++) {
+                        val[i] = new MCNBT(subtype, val[i]);
+                    }
+                    break;
+                case 'compound':
+                    for (let key in NbtObject) {
+                        // console.log(NbtObject[key]!=undefined)                  
+                        if (NbtObject[key] != undefined) {
+                            NbtObject[key] = __decode(NbtObject[key]);
+                        }
+                    }
+                    break;
+                case 'list':
+                    let isComplicated = false;
+                    let listType = null;
+                    for (let i = 0; i < NbtObject.length; i++) {
+                        if (listType == null) {
+                            listType = __getNbtType(NbtObject[i]);
+
+                        } else if (listType != __getNbtType(NbtObject[i])) {
+                            isComplicated = true;
+                            break;
+                        }
+                    }
+                    for (let i = 0; i < NbtObject.length; i++) {
+                        if (isComplicated) {
+                            if (__getNbtType(NbtObject[i]) == 'compound') {
+                                NbtObject[i] = __decode(NbtObject[i]);
+                            } else {
+                                NbtObject[i] = new MCNBT("compound", { "": __decode(NbtObject[i]) });
+                            }
+                        } else {
+                            NbtObject[i] = __decode(NbtObject[i]);
+                        }
+
+                    }
+                    // 
+                    break;
+            }
+            rt.setValue(val);
+            return rt;
+
+        }
+        return __decode(SNBTObject);
     }
 }
 
@@ -142,10 +341,10 @@ class MCNBT {
                     return true;
                 }
 
-                // 不允许直接修改type
+                // 允许直接修改type
                 if (prop === '_type' || prop === 'type') {
-                    console.warn('Type cannot be modified directly. Use setType() method.');
-                    return false;
+                    target.setType(newValue);
+                    return true;
                 }
 
                 // 设置其他属性
@@ -231,11 +430,33 @@ class MCNBT {
     }
 }
 
-function NBTFILE_PARSER() {
-    this.file_stream = null;
-    this.content = null;
+class MCA_HEADER {
+    constructor(x = 0, z = 0, offset = 0, length = 0, data = null, timestamp = null) {
+        this.x = x;
+        this.z = z;
+        this.offset = offset;
+        this.bufferOffset = 4 * 1024 * offset;
+        this.length = length;
+        this.bufferLength = 4 * 1024 * length;
+        this.data = data; //存储时使用，读取不使用
+        this.timestamp = timestamp;
+    }
+}
+function read_bytes_with_length(data, offset, length) {
+    let __res = Buffer.alloc(length);
+    if (offset + length > data.length) {
+        length = data.length - offset;
+    }
+    data.copy(__res, 0, offset, offset + length);
+    return __res;
+}
+
+function NBTFILE_PARSER(data = null) {
+    this.content = data;
     this.load_from_raw_data = function (data) {
         this.content = data;
+        return this;
+
     }
     this.load_from_gzip_data = function (data) {
         this.content = data;
@@ -244,7 +465,7 @@ function NBTFILE_PARSER() {
             const decompressedData = zlib.gunzipSync(compressedData);
             this.content = decompressedData;
         } catch (error) {
-            throw new Error('解压失败: ', error);
+            throw new Error('Unzip error: ', error);
             return false;
         }
         return true;
@@ -257,7 +478,10 @@ function NBTFILE_PARSER() {
             return this.load_from_gzip_data(dt);
         } catch (e) {
             this.load_from_raw_data(dt);
+            return false;
+
         }
+
     }
     this.load_file_with_gzip = function (path) {
         return this.load_from_gzip_data(fs.readFileSync(path));
@@ -370,8 +594,8 @@ function NBTFILE_PARSER() {
                     val = read_list();
                     return new MCNBT("list", val);
                 } else if (type == 10) {
-                    //component
-                    val = read_component();
+                    //compound
+                    val = read_compound();
                     return val;
                 } else if (type == 11) {
                     //int array
@@ -386,13 +610,13 @@ function NBTFILE_PARSER() {
                 }
             }
         }
-        function read_component() {
+        function read_compound() {
             let __map = {};
             while (i < data.length) {
                 let type = read_type();
                 // console.log(type,name.toString())
                 if (type == 0) {
-                    let __res = new MCNBT("component", __map);
+                    let __res = new MCNBT("compound", __map);
                     return __res;
                 } else {
                     let name = read_tagname();
@@ -400,31 +624,35 @@ function NBTFILE_PARSER() {
                     __map[name] = val;
                 }
             }
-            throw new Error(`Incomplete components. Are these data really in the NBT format of Minecraft? (out of array)`);
+            throw new Error(`Incomplete compounds. Are these data really in the NBT format of Minecraft? (out of array)`);
         }
         let type = read_type();
         let name = read_tagname();
-        if (type == 10) return read_component();
+        if (type == 10) return read_compound();
         else throw new Error(`Unknown data type '${type}' ! Are these data really in the NBT format of Minecraft? (unknown type)`);
 
     }
 }
 
-function NBTFILE_SAVER() {
-    this.raw_data = null;
+function NBTFILE_SAVER(raw_data = null) {
+    this.raw_data = raw_data;
     this.fromBuffer = function (data) {
         this.raw_data = data;
+        return this;
     }
     this.fromMCNBT = function (data) {
         this.raw_data = __pack(data);
+        return this;
     }
     this.save_with_gzip = function (path) {
         let _val = this.get_gzip_raw();
         fs.writeFileSync(path, _val);
+        return this;
     }
     this.save_nogzip = function (path) {
         let _val = this.get_raw();
         fs.writeFileSync(path, _val);
+        return this;
     }
 
     this.get_gzip_raw = function () {
@@ -463,7 +691,7 @@ function NBTFILE_SAVER() {
             case 'list':
                 id = 9;
                 break;
-            case 'component':
+            case 'compound':
                 id = 10;
                 break;
             case 'int_array':
@@ -491,11 +719,13 @@ function NBTFILE_SAVER() {
             JavaBufferUtils.toShort(name_len).copy(prefix_buf, 1, 0, 2);
             name_buf.copy(prefix_buf, 3, 0, name_len);
             bufs.write(prefix_buf);
+            // console.log(name)
+
             parse_body(dat, t);
         }
         function parse_body(dat, t) {
-            if (t == 'component') {
-                parse_component(dat);
+            if (t == 'compound') {
+                parse_compound(dat);
                 bufs.write(Buffer.from([0]));
             } else if (t == 'byte_array') {
                 parse_number_list(dat.getValue());
@@ -542,7 +772,7 @@ function NBTFILE_SAVER() {
                 parse_body(dat[i], t);
             }
         }
-        function parse_component(dat) {
+        function parse_compound(dat) {
             let __map = dat.getValue();
             for (let key in __map) {
                 let ele = __map[key];
@@ -550,10 +780,286 @@ function NBTFILE_SAVER() {
             }
         }
         bufs.write(Buffer.from([10, 0, 0]));
-        parse_component(data)
+        parse_compound(data)
         bufs.write(Buffer.from([0]));
         bufs.end();
         return bufs.getBuffer();
     }
 }
-module.exports = { NBTFILE_PARSER, NBTFILE_SAVER, MCNBT,NBTFILE_SNBT_TOOL }
+
+function MCAFILE_PARSER(data = null) {
+    this.content = data;
+    this.headers = new Array();
+    this.path = null;
+    this.load_from_raw_data = function (data) {
+        this.content = data;
+    }
+    this.load_file = function (path) {
+        this.path = path;
+        return this.load_from_raw_data(fs.readFileSync(this.path));
+    }
+    this.parse_header = function () {
+        this.headers = __parse_header(this.content);
+    }
+    this.get_region_header = function (chunkX, chunkZ) {
+        if (this.headers == null) {
+            throw new Error(`You should first call the "parse_header" function to initialize the data.`);
+        }
+        for (let i = 0; i < this.headers.length; i++) {
+            if (this.headers[i].x == chunkX && this.headers[i].z == chunkZ) {
+                return this.headers[i];
+            }
+        }
+        return null;
+    }
+    this.parse_all_region_data = function () {
+        for (let i = 0; i < this.headers.length; i++) {
+            let tester = this.parse_region_data(this.headers[i]);
+            this.headers[i].data = tester.content;
+        }
+        return this.headers;
+    }
+    this.parse_region_data = function (mcainfo) {
+        if (mcainfo == null) {
+            throw new Error(`You should first call the "parse_header" function to initialize the data.`);
+        }
+
+        return __parse_region(this.content, mcainfo, this.path);
+    }
+    function __parse_region(data, regioninfo, path = null) {
+        let dat = Buffer.from(data);
+        if (regioninfo.offset < 2) {
+            throw new Error(`Region data has invalid sector at index: (${x},${z}); sector ${offset} overlaps with header`);
+
+        }
+        if (regioninfo.offset == 0) {
+            throw new Error(`Region data has invalid sector at index: (${x},${z}); sector ${offset} overlaps with header`);
+        }
+        if (regioninfo.bufferOffset >= dat.length) {
+            throw new Error(`Region data has an invalid sector at index: $(${regioninfo.x},${regioninfo.z}); sector ${regioninfo.offset} is out of bounds`);
+        }
+
+        let rdata = read_bytes_with_length(dat, regioninfo.bufferOffset, regioninfo.bufferLength);
+        // console.log(rdata)
+        let __num_1 = rdata[0];
+        let __num_2 = rdata[1];
+        let __num_3 = rdata[2];
+        let __num_4 = rdata[3];
+        let tlength = __num_1 * 256 * 256 * 256 + __num_2 * 256 * 256 + __num_3 * 256 + __num_4;
+        let compressType = rdata[4];
+        let tdata = read_bytes_with_length(rdata, 5, tlength);
+        if (compressType >= 129 && tlength <= 1) {
+            compressType -= 128;
+            if (path != null) {
+                let dir = pathLib.dirname(path);
+                let fname = pathLib.basename(path, ".mca");
+                let mccfname = function () {
+                    let arr = fname.split(".");
+                    if (arr.length >= 4) {
+                        return `c.${parseInt(arr[1]) * 32 + regioninfo.x}.${parseInt(arr[2]) * 32 + regioninfo.z}.mcc`;
+                    } else
+                        return `c.${regioninfo.x}.${regioninfo.z}.mcc`;
+                }();
+                let mccpath = pathLib.join(dir, mccfname);
+                if (fs.existsSync(mccpath)) {
+                    tdata = fs.readFileSync(mccpath);
+                    tdata = read_bytes_with_length(tdata, 5, tdata.length - 5);
+                }
+            } else {
+                tdata = [];
+            }
+        }
+        if (compressType == 1) {
+            try {
+                const decompressedData = zlib.gunzipSync(tdata);
+                tdata = decompressedData;
+            } catch (error) {
+                throw new Error('Unzip error (GZip (RFC1952)): ', error);
+            }
+        } else if (compressType == 2) {
+            try {
+                const decompressedData = zlib.inflateSync(tdata);
+                tdata = decompressedData;
+            } catch (error) {
+                throw new Error('Unzip error (Zlib (RFC1950)): ', error);
+            }
+        } else if (compressType == 3) {
+            // 不压缩
+        } else if (compressType == 4) {
+            try {
+                const decompressedData = lz4.decode(tdata);
+                tdata = decompressedData;
+            } catch (error) {
+                throw new Error('Unzip error (LZ4): ', error);
+            }
+        } else {
+            throw new Error(`Unsupport compress algorithm type ${compressType}!`);
+        }
+        return new NBTFILE_PARSER(tdata);
+    }
+    function __parse_header(data) {
+        let dat = Buffer.from(data);
+        let arr = new Array();
+        if (dat.length < 8 * 1024) {
+            throw new Error(`Region data has truncated header: ${dat.length}`);
+        }
+        for (let z = 0; z <= 31; z++) {
+            for (let x = 0; x <= 31; x++) {
+                let headeroffset = (z * 32 + x) * 4;
+
+
+                let __num_1 = dat[headeroffset];
+                let __num_2 = dat[headeroffset + 1];
+                let __num_3 = dat[headeroffset + 2];
+                let __length = dat[headeroffset + 3];
+                let length = __length;
+                let offset = __num_1 * 256 * 256 + __num_2 * 256 + __num_3;
+
+                let timestampoffset = 4096 + headeroffset;
+                let _num_1 = dat[timestampoffset];
+                let _num_2 = dat[timestampoffset + 1];
+                let _num_3 = dat[timestampoffset + 2];
+                let _num_4 = dat[timestampoffset + 3];
+                let timestamp = _num_1 * 256 * 256 * 256 + _num_2 * 256 * 256 + _num_3 * 256 + _num_4;
+
+                if (length == 0 && offset == 0) continue; //未被创建
+                if (offset < 2) {
+                    console.warn(`Region data has invalid sector at index: (${x},${z}); sector ${offset} overlaps with header`);
+                    continue;
+                }
+                if (offset == 0) {
+                    console.warn(`Region data has invalid sector at index: (${x},${z}); sector ${offset} overlaps with header`);
+                    continue;
+                }
+                arr.push(new MCA_HEADER(x, z, offset, length, null, timestamp));
+            }
+        }
+        return arr;
+    }
+}
+
+function MCAFILE_SAVER(headers) {
+    this.headers = headers;
+    if (this.headers == null) {
+        this.headers = new Array();
+    }
+    this.get_raw_data = function (compressAlgorithm = 2) {
+        return __save(this.headers, null, compressAlgorithm);
+    }
+    this.save_to_file = function (path, compressAlgorithm = 2) {
+        fs.writeFileSync(path, __save(this.headers, path, compressAlgorithm));
+    }
+    function __save(headers, path = undefined, compressAlgorithm = 2) {
+        function __compress(data, compressType = 2) {
+            if (compressType == 1) {
+                try {
+                    const decompressedData = zlib.gzipSync(data);
+                    return decompressedData;
+                } catch (error) {
+                    throw new Error('Unzip error (GZip (RFC1952)): ', error);
+                }
+            } else if (compressType == 2) {
+                try {
+                    const decompressedData = zlib.deflateSync(data);
+                    return decompressedData;
+                } catch (error) {
+                    throw new Error('Unzip error (Zlib (RFC1950)): ', error);
+                }
+            } else if (compressType == 3) {
+                // 不压缩
+                return data;
+            } else if (compressType == 4) {
+                try {
+                    const decompressedData = lz4.encode(data);
+                    return decompressedData;
+                } catch (error) {
+                    throw new Error('Unzip error (LZ4): ', error);
+                }
+            } else {
+                throw new Error(`Unsupport compress algorithm type ${compressType}!`);
+            }
+        }
+        let BufferFlow = new NBTStream();
+        let headerBuffer = Buffer.alloc(4096);
+        let timestampBuffer = Buffer.alloc(4096);
+        let offset_now = 2;
+        headers.sort((a, b) => {
+            if (a.z == b.z) {
+                return a.x - b.x;
+            } else {
+                return a.z - b.z;
+            }
+        });
+        for (let i = 0; i < headers.length; i++) {
+            let headerOffset = (headers[i].z * 32 + headers[i].x) * 4;
+            let dt = headers[i].data;
+            // 4096+headerOffset
+            if (headers[i].timestamp == null) headers[i].timestamp = Date.now();
+            JavaBufferUtils.toInt(headers[i].timestamp).copy(timestampBuffer, headerOffset, 0, 4);
+            dt = __compress(dt, compressAlgorithm);
+            let tdt = Buffer.alloc(dt.length + 5);
+            let num = dt.length;
+            let __num_3 = num % 256;
+            let __num_2 = num / 256;
+            let __num_1 = __num_2 / 256;
+            let __num_0 = __num_1 / 256;
+            __num_2 = __num_2 % 256;
+            __num_1 = __num_1 % 256;
+            __num_0 = __num_0 % 256;
+            tdt[0] = __num_0;
+            tdt[1] = __num_1;
+            tdt[2] = __num_2;
+            tdt[3] = __num_3;
+            tdt[4] = compressAlgorithm;
+            dt.copy(tdt, 5, 0, dt.length);
+            let dataTrueLen = tdt.length;
+            let dataStoredLen = (parseInt(dataTrueLen / 4096));
+            if (dataTrueLen % 4096 > 0) dataStoredLen += 1;
+            if (dataStoredLen > 255) {
+                if (path == null) {
+                    throw new Error("Cannot save oversized chunk!")
+                } else {
+                    let dir = pathLib.dirname(path);
+                    let fname = pathLib.basename(path, ".mca");
+                    let mccfname = function () {
+                        let arr = fname.split(".");
+                        if (arr.length >= 4) {
+                            return `c.${parseInt(arr[1]) * 32 + headers[i].x}.${parseInt(arr[2]) * 32 + headers[i].z}.mcc`;
+                        } else
+                            return `c.${headers[i].x}.${headers[i].z}.mcc`;
+                    }();
+                    let mccpath = pathLib.join(dir, mccfname);
+                    let wdt = Buffer.alloc(dt.length + 5);
+                    dt.copy(wdt, 5, 0, dt.length);
+                    fs.writeFileSync(mccpath, wdt);
+                    dataStoredLen = 1;
+                    tdt = Buffer.from([0, 0, 0, 1, 128]);
+                    tdt[4] = compressAlgorithm + 128;
+                    console.warn(`Saving oversized chunk (${headers[i].x},${headers[i].z}) (${dataTrueLen} bytes} to external file ${mccpath}`);
+                }
+            }
+            let wdt = Buffer.alloc(4096 * dataStoredLen);
+            tdt.copy(wdt, 0, 0, tdt.length);
+            BufferFlow.write(wdt);
+            let _num_2 = offset_now % 256;
+            let _num_1 = offset_now / 256;
+            let _num_0 = _num_1 / 256;
+            _num_1 = _num_1 % 256;
+            _num_0 = _num_0 % 256;
+            headerBuffer[headerOffset + 0] = _num_0;
+            headerBuffer[headerOffset + 1] = _num_1;
+            headerBuffer[headerOffset + 2] = _num_2;
+            headerBuffer[headerOffset + 3] = dataStoredLen;
+            offset_now += dataStoredLen;
+
+        }
+        BufferFlow.end();
+        let bu = BufferFlow.getBuffer();
+        let ret = Buffer.alloc(8192 + bu.length);
+        headerBuffer.copy(ret, 0, 0, 4096);
+        timestampBuffer.copy(ret, 4096, 0, 4096);
+        bu.copy(ret, 8192, 0, bu.length);
+        return ret;
+    }
+}
+module.exports = { NBTFILE_PARSER, NBTFILE_SAVER, MCNBT, NBTFILE_SNBT_TOOL, MCAFILE_PARSER, MCA_HEADER, MCAFILE_SAVER }

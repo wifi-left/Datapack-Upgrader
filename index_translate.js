@@ -1,11 +1,22 @@
 #!/usr/bin/env node
-
+const NBTFILE_LIB = require("./nbtfile_lib.js")
 const translation_getkey = require("./transformations/translation_getkey.js");
 const translation_applykey = require("./transformations/translation_applykey.js");
 const translation_reskey = require("./transformations/translation_reskey.js");
 const { Settings, writeDebugLine, writeLine } = require("./inputSystem.js");
 const readlineSync = require('readline-sync');
 var transform_version = "get";
+
+const MOVE_LEFT = Buffer.from('1b5b3130303044', 'hex').toString();
+const MOVE_UP = Buffer.from('1b5b3141', 'hex').toString();
+const CLEAR_LINE = Buffer.from('1b5b304b', 'hex').toString();
+
+function clearnLine(n) {
+    for (let index = 0; index < n; index++) {
+        process.stdout.write(MOVE_LEFT + CLEAR_LINE + MOVE_UP);
+    }
+}
+
 function transformCommand(cmd) {
     if (transform_version == "get") {
         return translation_getkey.transformCommand(cmd);
@@ -166,6 +177,52 @@ function transformReskeyFile(input, output, reskeyOutput, overwrite = false) {
     if (!fs.existsSync(pathLib.dirname(reskeyOutput))) fs.mkdirSync(pathLib.dirname(reskeyOutput), { recursive: true });
     fs.writeFileSync(reskeyOutput, JSON.stringify(Settings.result, null, 4));
 }
+function transformReskeyMCNBT(data) {
+    let basename = pathLib.basename(Settings.OutputFilePath);
+    let extname = pathLib.extname(Settings.OutputFilePath);
+    if (basename == 'scoreboard.dat') {
+        let dt = data['data'];
+        if (dt['Teams'] != null) {
+            let ddt = dt['Teams'];
+            for (let i = 0; i < ddt.length; i++) {
+                let ele = ddt[i];
+                if (ele['MemberNamePrefix'] != null) {
+                    ele['MemberNamePrefix'] = translation_reskey.transformRawMsg(ele['MemberNamePrefix']);
+                }
+                if (ele['MemberNameSuffix'] != null) {
+                    ele['MemberNameSuffix'] = translation_reskey.transformRawMsg(ele['MemberNameSuffix']);
+                }
+                ddt[i] = ele;
+            }
+        }
+        if (dt['Objectives'] != null) {
+            let ddt = dt['Objectives'];
+            for (let i = 0; i < ddt.length; i++) {
+                let ele = ddt[i];
+                if (ele['DisplayName'] != null) {
+                    ele['DisplayName'] = translation_reskey.transformRawMsg(ele['DisplayName']);
+                }
+                ddt[i] = ele;
+            }
+        }
+    } else if (extname == '.mca') {
+        if (data['block_entities'] != null) {
+            let dt = data['block_entities'];
+            for (let i = 0; i < dt.length; i++) {
+                dt[i] = translation_reskey.transformBlockTags(dt[i]);
+            }
+            data['block_entities'] = dt;
+        }
+        if (data['Entities'] != null) {
+            let dt = data['Entities'];
+            for (let i = 0; i < dt.length; i++) {
+                dt[i] = translation_reskey.transformEntityTags(dt[i]);
+            }
+            data['Entities'] = dt;
+        }
+    }
+    return data;
+}
 function transformReskeyFile_true(input) {
     // Settings.noWarnings = false;
     if (pathLib.extname(input) == '.mcfunction') {
@@ -203,7 +260,7 @@ function transformReskeyFile_true(input) {
         }
     } else if (pathLib.extname(input) == '.json') {
         try {
-            content = fs.readFileSync(input, { encoding: "utf8" });
+            var content = fs.readFileSync(input, { encoding: "utf8" });
 
             Settings.nowLine = 0;
             Settings.nowFile = input;
@@ -215,6 +272,72 @@ function transformReskeyFile_true(input) {
         } catch (e) {
             writeDebugLine(e);
             console.error(`## ERROR: Reading file failed: ${e.message}`);
+        }
+    } else {
+        if (!Settings.enableBinary)
+            return;
+
+        if (['.nbt', '.dat'].includes(pathLib.extname(input))) {
+            try {
+                let parser = new NBTFILE_LIB.NBTFILE_PARSER();
+                let saver = new NBTFILE_LIB.NBTFILE_SAVER();
+                let isGziped = parser.try_load_file_with_gzip(input);
+                Settings.nowLine = 0;
+                Settings.nowFile = input;
+                Settings.hasLog = false
+                let data = parser.parse();
+                let snbt = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToSNBT(data);
+                snbt = transformReskeyMCNBT(snbt);
+                data = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToMCNBT(snbt);
+
+                saver.fromMCNBT(data);
+                // Settings.beforeLog_once = "#!#[file=" + JSON.stringify(pathLib.basename(input)) + ",line=" + j + "]" + "\r\n";
+                if (isGziped)
+                    saver.save_with_gzip(Settings.OutputFilePath);
+                else saver.save_nogzip(Settings.OutputFilePath);
+                // Settings.OutputFile.write(translation_reskey.transformJSON(content))
+            } catch (e) {
+                writeDebugLine(e);
+                // throw new Error(e);
+                console.error(`## ERROR: Reading file failed: ${e.message}`);
+            }
+
+
+        } else if (pathLib.extname(input) == '.mca') {
+            try {
+                let parser = new NBTFILE_LIB.MCAFILE_PARSER();
+                let saver = new NBTFILE_LIB.MCAFILE_SAVER();
+                parser.load_file(input);
+                parser.parse_header();
+
+                Settings.nowLine = 0;
+                Settings.nowFile = input;
+                Settings.hasLog = false
+                console.log("Loading MCA Regions...")
+                let LEN = parser.headers.length;
+                for (let i = 0; i < LEN; i++) {
+                    if ((i + 1) % (LEN / 16) == 0) {
+                        clearnLine(1);
+                        console.log(`Loading MCA [${(i + 1)}/${parser.headers.length}]...`)
+                    }
+
+                    let tester = parser.parse_region_data(parser.headers[i]);
+                    let snbt = NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToSNBT(new NBTFILE_LIB.NBTFILE_PARSER(tester.content).parse());
+
+                    snbt = transformReskeyMCNBT(snbt);
+                    // console.log(snbt)
+                    let p = new NBTFILE_LIB.NBTFILE_SAVER();
+                    p.fromMCNBT(NBTFILE_LIB.NBTFILE_SNBT_TOOL.ToMCNBT(snbt));
+                    parser.headers[i].data = p.get_raw();
+                }
+                clearnLine(1);
+                saver.headers = parser.headers;
+                saver.save_to_file(Settings.OutputFilePath, 2);
+                // Settings.OutputFile.write(translation_reskey.transformJSON(content))
+            } catch (e) {
+                writeDebugLine(e);
+                console.error(`## ERROR: Reading file failed: ${e.message}`);
+            }
         }
     }
 }
@@ -261,12 +384,17 @@ function transformReskeyFolder(dir, output, reskeyOutput, overwrite = false) {
         if (fs.existsSync(outputPath) == true && !overwrite) {
             Settings.warningMessages += "\n" + ("## WARNING: File " + output + " already exists. Skip it. If you want to overwrite it, please use '-y' after the arguments.")
         } else {
-            if (!fs.existsSync(pathLib.dirname(outputPath))) fs.mkdirSync(pathLib.dirname(outputPath), { recursive: true });
+            if (!fs.existsSync(pathLib.dirname(outputPath)))
+                fs.mkdirSync(pathLib.dirname(outputPath), { recursive: true });
             if (pathLib.extname(outputPath) == '.mcfunction' || pathLib.extname(outputPath) == '.json') {
                 Settings.OutputFile = fs.createWriteStream(outputPath);
                 Settings.OutputFilePath = outputPath;
                 transformReskeyFile_true(files[i]);
                 Settings.OutputFile.end();
+            } else {
+                Settings.OutputFilePath = outputPath;
+                Settings.OutputFile = null;
+                transformReskeyFile_true(files[i]);
             }
 
 
@@ -376,6 +504,7 @@ Supported commands:
 -debug                              Show debug messages
 -c <commands>                       Get keys from a command. Use '\\n' to transform multiline commands.
 -nowarnings                         Do not print error messages.
+-enablebinary                       [ALPHA] Transform binary files.
 -norepeat                           Merge repeat texts.
 
 For option get:
@@ -460,7 +589,11 @@ while (i < argvs.length) {
     } else if (arg == '-h') {
         console.log(HELP_CONTENT);
         return;
-    } else if (arg == '-nowarnings') {
+    } else if (arg == '-enablebinary') {
+        Settings.enableBinary = !Settings.enableBinary;
+        console.log("## Enable ALPHA Features [Binary Transformation]: " + Settings.enableBinary);
+    }
+    else if (arg == '-nowarnings') {
         Settings.noWarnings = !Settings.noWarnings;
         console.log("## No Warnings Mode: " + Settings.noWarnings);
     } else if (arg == '-norepeat') {

@@ -949,7 +949,7 @@ function transformItemTags(tag, itemId = undefined) {
     // console.log(tag)
     for (let key in tag) {
         let simplestKey = deleteNameSpace(key);
-        if(simplestKey.startsWith("!")){
+        if (simplestKey.startsWith("!")) {
             simplestKey = simplestKey.substring(1);
         }
         // console.log(simplestKey)
@@ -965,6 +965,18 @@ function transformItemTags(tag, itemId = undefined) {
                 for (let i = 0; i < tag[key].length; i++) {
                     components[key][i] = NBTools.ParseNBT(NBTStringParse(tag[key][i]));
                 }
+                break;
+            case 'written_book_content':
+                components[key] = tag[key];
+                let p = components[key]['pages'];
+                for (let i = 0; i < p.length; i++) {
+                    if (p[i].raw != undefined) {
+                        continue;
+                    } else {
+                        p[i] = transformRawMsg(p[i]);
+                    }
+                }
+                components[key]['pages'] = p;
                 break;
             case 'attribute_modifiers':
                 if (tag[key]['modifiers'] != null)
