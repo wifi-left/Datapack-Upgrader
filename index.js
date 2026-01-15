@@ -916,7 +916,7 @@ module.exports={
     "test": "npm install && node index.js -debug -i sample/updater_1_20 debug/updater_1_20 -y",
     "test2": "node index.js -debug -v 1.21.4 -i \"sample/updater_1_21_4\" \"debug/updater_1_21_4\" -y",
     "test3": "node index_translate.js -debug reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
-    "test4": "node index_translate.js -debug -norepeat reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
+    "test4": "node index_translate.js -debug -norepeat -enablebinary reskey -i \"sample/translation\" \"debug/translation\" \"debug/translation/output.json\" -y",
     "test5": "node nbtfile_lib_tester.js",
     "translate_cli": "node index_translate.js -debug",
     "run": "node index.js",
@@ -934,8 +934,9 @@ module.exports={
   "license": "ISC",
   "homepage": "https://github.com/wifi-left/Datapack-Upgrader",
   "dependencies": {
-    "graceful-fs": "^4.2.11",
-    "readline-sync": "^1.4.10"
+    "graceful-fs": "4.2.11",
+    "lz4": "0.6.5",
+    "readline-sync": "1.4.10"
   }
 }
 
@@ -1025,7 +1026,7 @@ function modifyLootTableTree(data) {
                         let components = transformItemTags(NBTools.ParseNBT(nbt), itemid);
                         data[i][j]['components'] = {}
                         for (let k in components) {
-                            data[i][j]['components']["minecraft:" + k] = NBTools.ToJSON(components[k]);
+                            data[i][j]['components']["minecraft:" + deleteNameSpace(k)] = NBTools.ToJSON(components[k]);
 
                         }
                         delete data[i][j]['tag'];
@@ -1750,18 +1751,20 @@ function transformSelector(selectorText) {
 }
 function transformEntityItemTag(itemTag) {
     // console.log(itemTag)
+    if (itemTag == null) return {};
     let id = itemTag.id;
     let rawid = getNbtContent(id);
-    let count = getNbtContent(itemTag.Count);
-    let tag = itemTag.tag;
+    let count = getNbtContent(itemTag.count);
+    let tag = itemTag.components;
     let slot = itemTag.Slot;
     let components = null;
     let result = { id: id, count: count };
     if (tag != undefined) {
+        // console.log(tag)
         components = transformItemTags(tag, rawid);
         result['components'] = {};
         for (var key in components) {
-            result['components']["minecraft:" + (key)] = components[key];
+            result['components'][key] = components[key];
         }
     }
     if (slot != undefined) {
@@ -1883,6 +1886,46 @@ function transformBlockTags(tag) {
         tag['exit_portal'] = transformBlockItemTag(tag['ExitPortal']);
         delete tag['ExitPortal'];
     }
+    if (tag['Text1'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][0] = tag['Text1'];
+        delete tag['Text1'];
+    }
+    if (tag['Text2'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][1] = tag['Text2'];
+        delete tag['Text2'];
+    }
+    if (tag['Text3'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][2] = tag['Text3'];
+        delete tag['Text13'];
+    }
+    if (tag['Text4'] != undefined) {
+        if (tag['front_text'] == null) {
+            tag['front_text'] = { messages: ['', '', '', ''] }
+        }
+        if (tag['front_text']['messages'] == null) {
+            tag['front_text']['messages'] = ['', '', '', ''];
+        }
+        tag['front_text']['messages'][3] = tag['Text4'];
+        delete tag['Text4'];
+    }
     return tag;
 }
 function transformEntityTags(tag, entityId = undefined) {
@@ -2003,10 +2046,10 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['SelectedItem'] != undefined) {
         tag['SelectedItem'] = transformEntityItemTag(tag['SelectedItem'])
     }
-    if(tag['Passengers']!=undefined){
-        for(let i = 0;i<tag['Passengers'].length;i++){
+    if (tag['Passengers'] != undefined) {
+        for (let i = 0; i < tag['Passengers'].length; i++) {
             let PassengersEntityId = tag['Passengers'][i]['id'];
-            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i],PassengersEntityId);
+            tag['Passengers'][i] = transformEntityTags(tag['Passengers'][i], PassengersEntityId);
         }
     }
     return tag;
@@ -3404,7 +3447,7 @@ function transformItemTags(tag, itemId = undefined) {
     // console.log(tag)
     for (let key in tag) {
         let simplestKey = deleteNameSpace(key);
-        if(simplestKey.startsWith("!")){
+        if (simplestKey.startsWith("!")) {
             simplestKey = simplestKey.substring(1);
         }
         // console.log(simplestKey)
@@ -3420,6 +3463,18 @@ function transformItemTags(tag, itemId = undefined) {
                 for (let i = 0; i < tag[key].length; i++) {
                     components[key][i] = NBTools.ParseNBT(NBTStringParse(tag[key][i]));
                 }
+                break;
+            case 'written_book_content':
+                components[key] = tag[key];
+                let p = components[key]['pages'];
+                for (let i = 0; i < p.length; i++) {
+                    if (p[i].raw != undefined) {
+                        continue;
+                    } else {
+                        p[i] = transformRawMsg(p[i]);
+                    }
+                }
+                components[key]['pages'] = p;
                 break;
             case 'attribute_modifiers':
                 if (tag[key]['modifiers'] != null)
