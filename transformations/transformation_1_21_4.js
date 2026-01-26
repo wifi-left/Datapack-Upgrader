@@ -901,6 +901,9 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['Item'] = transformEntityItemTag(tag['Item']);
     }
     // writeDebugLine(tag)
+    if (tag['Items'] != undefined) {
+        tag['Items'] = transformBlockItemTag(tag['Items'])
+    }
     if (tag['Inventory'] != undefined) {
         tag['Inventory'] = transformBlockItemTag(tag['Inventory'])
     }

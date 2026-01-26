@@ -1,1 +1,0 @@
-clear @s diamond{Enchantments:[{id:sharpness,lvl:1}],display:{Name:'"Hello"'},hello:true}
