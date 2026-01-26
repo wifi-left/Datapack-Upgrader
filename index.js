@@ -2038,6 +2038,10 @@ function transformEntityTags(tag, entityId = undefined) {
     if (tag['Item'] != undefined) {
         tag['Item'] = transformEntityItemTag(tag['Item']);
     }
+    if (tag['Items'] != undefined) {
+        tag['Items'] = transformBlockItemTag(tag['Items'])
+    }
+    
     // writeDebugLine(tag)
     if (tag['Inventory'] != undefined) {
         tag['Inventory'] = transformBlockItemTag(tag['Inventory'])
@@ -3398,6 +3402,9 @@ function transformEntityTags(tag, entityId = undefined) {
         tag['Item'] = transformEntityItemTag(tag['Item']);
     }
     // writeDebugLine(tag)
+    if (tag['Items'] != undefined) {
+        tag['Items'] = transformBlockItemTag(tag['Items'])
+    }
     if (tag['Inventory'] != undefined) {
         tag['Inventory'] = transformBlockItemTag(tag['Inventory'])
     }
